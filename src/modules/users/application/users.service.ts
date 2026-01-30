@@ -1,7 +1,6 @@
-import { Injectable, Logger, OnModuleInit, HttpStatus } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ConfigService } from '@nestjs/config';
 
 import { Model } from 'mongoose';
 
@@ -20,7 +19,6 @@ import { UserPasswordChangedEvent } from '../events/user-password-changed.event'
 import { User, UserDocument } from '../infrastructure/schemas/user.schema';
 
 import { ApiResponse } from 'src/common/types/api-response.type';
-import { SYSTEM_ADMIN_ID } from 'src/common/constants/system-constants';
 import {
   CreateUserDto,
   UpdatePasswordDto,
@@ -36,33 +34,21 @@ import {
  * - Hashing de contraseñas con Argon2
  * - Auditoría end-to-end de todas las operaciones
  * - Emisión de eventos de dominio
- * - Auto-seed de super_admin al inicializar
+ *
+ * NOTA: La creación del super_admin es responsabilidad de SystemBootstrapService
+ * que se ejecuta en el ciclo de inicialización de NestJS
  */
 @Injectable()
-export class UsersService implements IUsersService, OnModuleInit {
+export class UsersService implements IUsersService {
   private readonly logger = new Logger(UsersService.name);
 
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private eventEmitter: EventEmitter2,
-    private configService: ConfigService,
     private usersRepository: MongoDbUsersRepository,
     private asyncContextService: AsyncContextService,
     private auditService: AuditService,
   ) {}
-
-  /**
-   * Al inicializar el módulo, implementar auto-seed del super_admin.
-   *
-   * Estrategia: Auto-seed inteligente
-   * - Se ejecuta en onModuleInit SIEMPRE (no requiere SEED_ENABLED)
-   * - Verifica si la colección 'users' está vacía
-   * - Si está vacía Y SA_EMAIL + SA_PWD están configurados → crea super_admin
-   * - Si no está vacía → no hace nada (respeta datos preexistentes)
-   */
-  async onModuleInit(): Promise<void> {
-    // await this.seedSuperAdminIfEmpty();
-  }
 
   /**
    * Crear nuevo usuario.
@@ -106,7 +92,7 @@ export class UsersService implements IUsersService, OnModuleInit {
             id: user.id,
             email: user.email,
             fullname: user.fullname,
-            roleId: user.roleId,
+            roleKey: user.roleKey,
             status: user.status,
             userId: userId,
           },
@@ -402,10 +388,10 @@ export class UsersService implements IUsersService, OnModuleInit {
         tags: ['user', 'update_role', 'security'],
         changes: {
           before: {
-            roleId: beforeUser.roleId,
+            roleKey: beforeUser.roleKey,
           },
           after: {
-            roleId: user?.roleId,
+            roleKey: user?.roleKey,
           },
         },
       });
@@ -756,48 +742,6 @@ export class UsersService implements IUsersService, OnModuleInit {
   }
 
   /**
-   * Crear usuario super_admin si la colección está vacía.
-   *
-   * IMPORTANTE - Clarificación de userId vs id:
-   * - id: identificador del documento del super_admin (SYSTEM_ADMIN_ID)
-   * - userId: identificador del actor que creó este usuario = SYSTEM_ADMIN_ID
-   *   (él mismo, porque es una operación de sistema sin contexto JWT externo)
-   *
-   * NO confundir con:
-   * - En operaciones normales: userId = extractor del contexto JWT (usuario autenticado)
-   * - En operaciones de sistema: userId = SYSTEM_ADMIN_ID (usuario del sistema)
-   */
-  private async createSuperAdminIfEmpty(
-    saEmail: string,
-    saPwd: string,
-  ): Promise<void> {
-    this.logger.log(
-      `🌱 Users collection is empty - auto-creating super_admin user...`,
-    );
-
-    const passwordHash = await this.hashPassword(saPwd);
-    const superAdminId = SYSTEM_ADMIN_ID; // id del documento
-
-    await this.userModel.create({
-      id: superAdminId, // Identificador del documento
-      userId: superAdminId, // Quien lo creó = él mismo (sistema)
-      email: saEmail,
-      fullname: 'Super Administrator',
-      idNumber: '00000000000',
-      passwordHash,
-      roleKey: 'super_admin',
-      status: 'active',
-      isSystemAdmin: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    this.logger.log(
-      `✅ Super admin user auto-created: ${superAdminId} (${saEmail})`,
-    );
-  }
-
-  /**
    * Mapear documento de usuario a DTO.
    */
   private mapToDTO(user: UserDocument): UserDTO {
@@ -806,7 +750,7 @@ export class UsersService implements IUsersService, OnModuleInit {
       email: user.email,
       fullname: user.fullname,
       idNumber: user.idNumber,
-      roleId: user.roleId,
+      roleKey: user.roleKey,
       role: user.role,
       phone: user.phone,
       status: user.status,
@@ -815,45 +759,5 @@ export class UsersService implements IUsersService, OnModuleInit {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
-  }
-
-  /**
-   * Seed de super_admin si la colección está vacía.
-   *
-   * Estrategia: Auto-seed inteligente
-   * - Verifica si la colección 'users' está vacía
-   * - Si está vacía Y SA_EMAIL + SA_PWD están configurados → crea super_admin
-   * - Si no está vacía → no hace nada (respeta datos preexistentes)
-   */
-  private async seedSuperAdminIfEmpty(): Promise<void> {
-    try {
-      const usersCount = await this.userModel.countDocuments().exec();
-
-      if (usersCount > 0) {
-        this.logger.debug(
-          `Users collection already has ${usersCount} documents - skipping auto-seed`,
-        );
-        return;
-      }
-
-      // Colección vacía, intentar crear super_admin
-      const saEmail = this.configService.get<string>('SA_EMAIL');
-      const saPwd = this.configService.get<string>('SA_PWD');
-
-      if (!saEmail || !saPwd) {
-        this.logger.warn(
-          'Users collection is empty but SA_EMAIL or SA_PWD not configured - skipping super_admin auto-creation',
-        );
-        return;
-      }
-
-      await this.createSuperAdminIfEmpty(saEmail, saPwd);
-    } catch (error) {
-      this.logger.error(
-        `Error during users seed: ${error instanceof Error ? error.message : String(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      // No lanzar error - permitir que la app inicie aunque falle el seed
-    }
   }
 }

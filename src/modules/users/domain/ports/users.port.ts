@@ -22,7 +22,7 @@ export interface UpdateUserPayload {
 }
 
 export interface UpdateUserRolesPayload {
-  roleId: string;
+  roleKey: string;
 }
 
 export interface UpdateUserPasswordPayload {
@@ -37,7 +37,7 @@ export interface UserDTO {
   email?: string;
   emailVerified?: boolean;
   fullname: string;
-  roleId?: string;
+  roleKey: string;
   role?: Role;
   status: UserStatus;
   isSystemAdmin?: boolean;

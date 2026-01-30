@@ -6,6 +6,9 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { MongooseModule } from '@nestjs/mongoose';
 
+import fs from 'fs';
+import dotenv from 'dotenv';
+
 // Shared Modules
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -23,6 +26,7 @@ import { AppController } from './app.controller';
 import { AsyncContextService } from './common/context/async-context.service';
 import { InMemoryAntiReplayCacheService } from './common/cache/in-memory-anti-replay.service';
 import { InMemoryCacheService } from './common/cache/in-memory-cache.service';
+import { BootstrapModule } from './common/bootstrap';
 
 // Middlewares
 import {
@@ -42,6 +46,9 @@ import { INJECTION_TOKENS } from './common/constants/injection-tokens';
 
 @Module({
   imports: [
+    // ⭐ BootstrapModule: Importar PRIMERO para inicializar el sistema
+    BootstrapModule,
+
     // ⭐ SharedContextModule: Importar PRIMERO para que ClsService esté disponible globalmente
     SharedContextModule,
 
@@ -124,7 +131,21 @@ export class AppModule {
    * Constructor
    */
   constructor(private readonly configService: ConfigService) {
-    AppModule.port =
-      process.env.PORT ?? configService.get<number>('PORT') ?? '9053';
+    try {
+      // Leer .env directamente (prioridad sobre variables del sistema)
+      const envPath = `${process.cwd()}/.env`;
+
+      if (fs.existsSync(envPath)) {
+        const parsed = dotenv.parse(fs.readFileSync(envPath));
+        const portFromFile = parsed['PORT'] ? Number(parsed['PORT']) : NaN;
+        AppModule.port = !isNaN(portFromFile)
+          ? portFromFile
+          : (configService.get<number>('PORT') ?? 9053);
+      } else {
+        AppModule.port = configService.get<number>('PORT') ?? 9053;
+      }
+    } catch {
+      AppModule.port = configService.get<number>('PORT') ?? 9053;
+    }
   }
 }

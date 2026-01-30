@@ -40,12 +40,12 @@ export class MongoDbUsersRepository implements IUsersRepository {
   /**
    * Crear usuario.
    */
-  async create(payload: any): Promise<UserDocument> {
+  async create(payload: Partial<UserDocument>): Promise<UserDocument> {
     const user = await this.userModel.create({
       userId: payload.userId,
       email: payload.email,
       fullname: payload.fullname,
-      roleId: payload.roleId,
+      roleKey: payload.roleKey,
       phone: payload.phone,
       idNumber: payload.idNumber,
       passwordHash: payload.passwordHash,
@@ -96,7 +96,7 @@ export class MongoDbUsersRepository implements IUsersRepository {
     return this.userModel
       .findOneAndUpdate(
         { id, status: UserStatus.ACTIVE },
-        { $set: { roleId: payload.roleId } },
+        { $set: { roleKey: payload.roleKey } },
         { new: true },
       )
       .populate(this.populateOptions())

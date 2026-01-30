@@ -1,4 +1,4 @@
-import { MODULES, ACTIONS } from '../authz.constants';
+import { MODULES } from '../../authz/authz.constants';
 
 /**
  * Roles del sistema (isSystem=true, inmutables).
@@ -47,24 +47,28 @@ export const SYSTEM_ROLES = [
     name: 'Oficial de Seguridad',
     description: 'Gestión de roles, permisos, rotación y revocación de llaves',
     permissionKeys: [
-      // Módulos públicos (solo lectura)
+      // Módulos de solo lectura
       `${MODULES.CHANGELOG}.read`,
       `${MODULES.DOCUMENTATION}.read`,
       `${MODULES.SUPPORT}.read`,
       `${MODULES.CONTACT}.read`,
-      // Dashboard
       `${MODULES.DASHBOARD}.read`,
+      `${MODULES.MERCHANTS}.read`,
+      `${MODULES.CARDS}.read`,
+      `${MODULES.USERS}.read`,
+      `${MODULES.TERMINALS}.read`,
+      `${MODULES.TRANSACTIONS}.read`,
+      `${MODULES.VAULT}.read`,
+      `${MODULES.KEYS}.read`,
+      `${MODULES.AUDIT}.read`,
+
       // Acceso completo a módulos de seguridad
       `${MODULES.ROLES}.*`,
       `${MODULES.PERMISSIONS}.*`,
-      `${MODULES.VAULT}.*`,
-      `${MODULES.KEYS}.*`,
-      `${MODULES.TERMINAL}.*`,
-      // Issuers (acceso completo)
-      `${MODULES.ISSUERS}.*`,
+
       // Auditoría
-      `${MODULES.AUDIT}.read`,
       `${MODULES.AUDIT}.export`,
+
       // External Service
       `${MODULES.EXTERNAL_SERVICE}.read_status`,
       `${MODULES.EXTERNAL_SERVICE}.export`,
@@ -89,25 +93,35 @@ export const SYSTEM_ROLES = [
       `${MODULES.DOCUMENTATION}.read`,
       `${MODULES.SUPPORT}.read`,
       `${MODULES.CONTACT}.read`,
+
       // Dashboard
       `${MODULES.DASHBOARD}.read`,
+
       // Terminales
-      `${MODULES.TERMINAL}.create`,
-      `${MODULES.TERMINAL}.read`,
-      `${MODULES.TERMINAL}.update`,
-      `${MODULES.TERMINAL}.export`,
-      `${MODULES.TERMINAL}.enroll`,
-      `${MODULES.TERMINAL}.initialize`,
-      `${MODULES.TERMINAL}.enable`,
-      `${MODULES.TERMINAL}.disable`,
-      // Keys (solo lectura)
-      `${MODULES.KEYS}.read`,
-      `${MODULES.KEYS}.export`,
-      // Issuers (solo CRUD, NO zpk operations)
-      `${MODULES.ISSUERS}.view`,
-      `${MODULES.ISSUERS}.create`,
-      `${MODULES.ISSUERS}.edit`,
-      `${MODULES.ISSUERS}.delete`,
+      `${MODULES.TERMINALS}.create`,
+      `${MODULES.TERMINALS}.read`,
+      `${MODULES.TERMINALS}.update`,
+      `${MODULES.TERMINALS}.export`,
+      `${MODULES.TERMINALS}.enable`,
+      `${MODULES.TERMINALS}.disable`,
+
+      // Merchants (solo CRUD)
+      `${MODULES.MERCHANTS}.view`,
+      `${MODULES.MERCHANTS}.create`,
+      `${MODULES.MERCHANTS}.edit`,
+      `${MODULES.MERCHANTS}.delete`,
+
+      // Users
+      `${MODULES.MERCHANTS}.view`,
+      `${MODULES.MERCHANTS}.edit`,
+
+      // Cards
+      `${MODULES.CARDS}.read`,
+
+      // Transactions
+      `${MODULES.TRANSACTIONS}.read`,
+      `${MODULES.TRANSACTIONS}.export`,
+
       // External Service
       `${MODULES.EXTERNAL_SERVICE}.invoke`,
       `${MODULES.EXTERNAL_SERVICE}.read_status`,
@@ -138,14 +152,18 @@ export const SYSTEM_ROLES = [
       `${MODULES.AUDIT}.read`,
       `${MODULES.AUDIT}.export`,
       // Lectura de recursos
-      `${MODULES.TERMINAL}.read`,
-      `${MODULES.TERMINAL}.export`,
+      `${MODULES.TERMINALS}.read`,
+      `${MODULES.TERMINALS}.export`,
       `${MODULES.KEYS}.read`,
       `${MODULES.KEYS}.export`,
-      `${MODULES.ISSUERS}.view`,
-      `${MODULES.ISSUERS}.zpk-metadata`,
       `${MODULES.USERS}.read`,
       `${MODULES.USERS}.export`,
+      `${MODULES.MERCHANTS}.read`,
+      `${MODULES.MERCHANTS}.export`,
+      `${MODULES.TRANSACTIONS}.read`,
+      `${MODULES.TRANSACTIONS}.export`,
+      `${MODULES.CARDS}.read`,
+      `${MODULES.CARDS}.export`,
       `${MODULES.SERVICES}.read`,
       `${MODULES.SERVICES}.export`,
       `${MODULES.ROLES}.read`,
@@ -158,6 +176,98 @@ export const SYSTEM_ROLES = [
       `${MODULES.VAULT}.export`,
       `${MODULES.EXTERNAL_SERVICE}.read_status`,
       `${MODULES.EXTERNAL_SERVICE}.export`,
+    ],
+    status: 'active',
+    isSystem: true,
+  },
+
+  /**
+   * User - Rol base para usuarios normales sin privilegios especiales
+   * Permisos para registrar sus tarjetas y realizar transacciones
+   */
+  {
+    key: 'user',
+    name: 'Usuario',
+    description: 'Rol base para usuarios normales sin privilegios especiales',
+    permissionKeys: [
+      // Public / help
+      `${MODULES.CHANGELOG}.read`,
+      `${MODULES.DOCUMENTATION}.read`,
+      `${MODULES.SUPPORT}.read`,
+      `${MODULES.CONTACT}.read`,
+      `${MODULES.DASHBOARD}.read`,
+
+      // Perfil de usuario (propio)
+      `${MODULES.USERS}.read`,
+      `${MODULES.USERS}.update`,
+
+      // Gestión de tarjetas personales
+      `${MODULES.CARDS}.create`,
+      `${MODULES.CARDS}.read`,
+      `${MODULES.CARDS}.update`,
+      `${MODULES.CARDS}.delete`,
+
+      // Transacciones (iniciar y consultar propias)
+      `${MODULES.TRANSACTIONS}.create`,
+      `${MODULES.TRANSACTIONS}.read`,
+      `${MODULES.TRANSACTIONS}.export`,
+
+      // Invocar servicios externos (pago, verificación)
+      `${MODULES.EXTERNAL_SERVICE}.invoke`,
+      `${MODULES.EXTERNAL_SERVICE}.read_status`,
+    ],
+    status: 'active',
+    isSystem: true,
+  },
+
+  /**
+   * Merchant - Rol base para comerciantes
+   * Permisos para gestionar su propia información, crear terminales y ver transacciones de su negocio
+   */
+  {
+    key: 'merchant',
+    name: 'Comerciante',
+    description:
+      'Rol base para comerciantes con permisos para gestionar su propia información, crear terminales y ver transacciones de su negocio',
+    permissionKeys: [
+      // Public / help
+      `${MODULES.CHANGELOG}.read`,
+      `${MODULES.DOCUMENTATION}.read`,
+      `${MODULES.SUPPORT}.read`,
+      `${MODULES.CONTACT}.read`,
+      `${MODULES.DASHBOARD}.read`,
+
+      // Gestión del comercio (propio)
+      `${MODULES.MERCHANTS}.create`,
+      `${MODULES.MERCHANTS}.read`,
+      `${MODULES.MERCHANTS}.edit`,
+      `${MODULES.MERCHANTS}.delete`,
+
+      // Terminales del comercio
+      `${MODULES.TERMINALS}.create`,
+      `${MODULES.TERMINALS}.read`,
+      `${MODULES.TERMINALS}.update`,
+      `${MODULES.TERMINALS}.export`,
+      `${MODULES.TERMINALS}.enable`,
+      `${MODULES.TERMINALS}.disable`,
+
+      // Usuarios del comercio
+      `${MODULES.USERS}.create`,
+      `${MODULES.USERS}.read`,
+      `${MODULES.USERS}.edit`,
+      `${MODULES.USERS}.delete`,
+
+      // Transacciones del comercio
+      `${MODULES.TRANSACTIONS}.read`,
+      `${MODULES.TRANSACTIONS}.export`,
+      `${MODULES.TRANSACTIONS}.create`,
+
+      // Cartas / clientes
+      `${MODULES.CARDS}.read`,
+
+      // Integraciones externas necesarias
+      `${MODULES.EXTERNAL_SERVICE}.invoke`,
+      `${MODULES.EXTERNAL_SERVICE}.read_status`,
     ],
     status: 'active',
     isSystem: true,

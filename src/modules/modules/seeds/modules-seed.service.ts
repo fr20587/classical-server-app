@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ModulesService } from '../application/modules.service';
@@ -6,29 +6,27 @@ import { Module } from '../domain/module.entity';
 import { SYSTEM_MODULES } from './system-modules';
 
 /**
- * ModulesSeedService - Servicio automático de seeding de módulos
+ * ModulesSeedService - Servicio heredado de seeding de módulos
  *
- * Estrategia: Auto-seed inteligente
- * - Se ejecuta en onModuleInit SIEMPRE (no requiere SEED_ENABLED)
- * - Verifica si la colección 'modules' está vacía
- * - Si está vacía → seedea todos los SYSTEM_MODULES
- * - Si no está vacía → no hace nada (datos preexistentes respetados)
+ * NOTA: La inicialización de módulos ahora es responsabilidad de SystemBootstrapService
+ * que se ejecuta de forma centralizada en el ciclo de inicialización de NestJS.
+ *
+ * Este servicio se mantiene por compatibilidad pero no se ejecuta automáticamente.
+ * Se puede invocar manualmente si es necesario re-seedear módulos.
  */
 @Injectable()
-export class ModulesSeedService implements OnModuleInit {
+export class ModulesSeedService {
   private readonly logger = new Logger(ModulesSeedService.name);
 
   constructor(
     @InjectModel(Module.name) private moduleModel: Model<any>,
     private readonly modulesService: ModulesService,
   ) {}
-
   /**
-   * Hook del ciclo de vida de NestJS
-   * Se ejecuta al inicializar el módulo
+   * Método público para seedear módulos manualmente si es necesario
+   * Se puede invocar desde otros servicios o controladores si se requiere re-seedear
    */
-
-  async onModuleInit(): Promise<void> {
+  async seedIfNeeded(): Promise<void> {
     await this.checkAndSeedModules();
   }
 

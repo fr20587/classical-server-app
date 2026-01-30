@@ -1,18 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { v4 as uuidv4 } from 'uuid';
 import { RoleStatus } from '../../domain/role.enums';
-
+import { AbstractSchema } from 'src/common/schemas/abstract.schema';
 
 export type RoleDocument = HydratedDocument<Role>;
 
-
 @Schema({ timestamps: true, collection: 'roles' })
-export class Role {
-
-  @Prop({ required: true, unique: true, index: true, default: () => uuidv4() })
-  id: string;
-
+export class Role extends AbstractSchema {
   @Prop({ required: true, unique: true, lowercase: true, trim: true })
   key: string;
 

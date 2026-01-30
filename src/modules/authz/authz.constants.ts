@@ -1,5 +1,5 @@
 /**
- * Acciones estándar soportadas (CRUD + export + operaciones KMS).
+ * Acciones estándar soportadas (CRUD + export + operaciones de llaves).
  * Formato: lowercase, extensible sin romper compatibilidad.
  */
 export const ACTIONS = {
@@ -11,21 +11,8 @@ export const ACTIONS = {
   ENABLE: 'enable',
   DISABLE: 'disable',
   ASSIGN: 'assign',
-  // Acciones KMS específicas
-  ENROLL: 'enroll',
-  INITIALIZE: 'initialize',
   ROTATE: 'rotate',
   REVOKE: 'revoke',
-  TRANSFORM_PINBLOCK: 'transform_pinblock',
-  INVOKE: 'invoke',
-  READ_STATUS: 'read_status',
-  READ_METADATA: 'read_metadata',
-  EXPORT_METADATA: 'export_metadata',
-  ZPK_CREATE: 'zpk.create',
-  ZPK_ROTATE: 'zpk.rotate',
-  ZPK_REVOKE: 'zpk.revoke',
-  ZPK_READ_METADATA: 'zpk.read_metadata',
-  ROTATE_INTEGRATION: 'rotate_integration',
 } as const;
 
 /**
@@ -38,16 +25,21 @@ export const MODULES = {
   DOCUMENTATION: 'documentation',
   SUPPORT: 'support',
   CONTACT: 'contact',
+
   // Módulo inicial
   DASHBOARD: 'dashboard',
+
   // Módulos de negocio
-  TERMINAL: 'terminal',
+  TERMINALS: 'terminals',
+  MERCHANTS: 'merchants',
+  CARDS: 'cards',
+  TRANSACTIONS: 'transactions',
+
   // Módulos administrativos
   USERS: 'users',
   ROLES: 'roles',
   PERMISSIONS: 'permissions',
-  ISSUERS: 'issuers',
-  TEAM: 'team',
+
   // Módulos de auditoría y plataforma
   AUDIT: 'audit',
   ANALYTICS: 'analytics',

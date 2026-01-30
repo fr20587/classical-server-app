@@ -1,4 +1,4 @@
-import { MODULES, ACTIONS } from '../authz.constants';
+import { MODULES, ACTIONS } from '../../authz/authz.constants';
 
 /**
  * Catálogo inicial de permisos del sistema (isSystem=true).
@@ -239,71 +239,59 @@ export const SYSTEM_PERMISSIONS = [
     action: ACTIONS.EXPORT,
   },
 
-  // ===== TERMINAL =====
+  // ===== TERMINALS =====
   {
-    key: `${MODULES.TERMINAL}.${ACTIONS.CREATE}`,
+    key: `${MODULES.TERMINALS}.${ACTIONS.CREATE}`,
     description: 'Crear terminales',
-    resource: MODULES.TERMINAL,
+    resource: MODULES.TERMINALS,
     action: ACTIONS.CREATE,
   },
   {
-    key: `${MODULES.TERMINAL}.${ACTIONS.READ}`,
+    key: `${MODULES.TERMINALS}.${ACTIONS.READ}`,
     description: 'Leer metadata de terminales',
-    resource: MODULES.TERMINAL,
+    resource: MODULES.TERMINALS,
     action: ACTIONS.READ,
   },
   {
-    key: `${MODULES.TERMINAL}.${ACTIONS.UPDATE}`,
+    key: `${MODULES.TERMINALS}.${ACTIONS.UPDATE}`,
     description: 'Actualizar terminales',
-    resource: MODULES.TERMINAL,
+    resource: MODULES.TERMINALS,
     action: ACTIONS.UPDATE,
   },
   {
-    key: `${MODULES.TERMINAL}.${ACTIONS.DELETE}`,
+    key: `${MODULES.TERMINALS}.${ACTIONS.DELETE}`,
     description: 'Eliminar terminales',
-    resource: MODULES.TERMINAL,
+    resource: MODULES.TERMINALS,
     action: ACTIONS.DELETE,
   },
   {
-    key: `${MODULES.TERMINAL}.${ACTIONS.EXPORT}`,
+    key: `${MODULES.TERMINALS}.${ACTIONS.EXPORT}`,
     description: 'Exportar metadata de terminales',
-    resource: MODULES.TERMINAL,
+    resource: MODULES.TERMINALS,
     action: ACTIONS.EXPORT,
   },
   {
-    key: `${MODULES.TERMINAL}.${ACTIONS.ENROLL}`,
-    description: 'Enrolar terminales',
-    resource: MODULES.TERMINAL,
-    action: ACTIONS.ENROLL,
-  },
-  {
-    key: `${MODULES.TERMINAL}.${ACTIONS.INITIALIZE}`,
-    description: 'Inicializar terminales',
-    resource: MODULES.TERMINAL,
-    action: ACTIONS.INITIALIZE,
-  },
-  {
-    key: `${MODULES.TERMINAL}.${ACTIONS.ROTATE}`,
+    key: `${MODULES.TERMINALS}.${ACTIONS.ROTATE}`,
     description: 'Rotar llaves de terminales',
-    resource: MODULES.TERMINAL,
+    resource: MODULES.TERMINALS,
     action: ACTIONS.ROTATE,
   },
   {
-    key: `${MODULES.TERMINAL}.${ACTIONS.REVOKE}`,
+    key: `${MODULES.TERMINALS}.${ACTIONS.REVOKE}`,
     description: 'Revocar terminales',
-    resource: MODULES.TERMINAL,
+    resource: MODULES.TERMINALS,
     action: ACTIONS.REVOKE,
   },
   {
-    key: `${MODULES.TERMINAL}.${ACTIONS.ENABLE}`,
+    key: `${MODULES.TERMINALS}.${ACTIONS.ENABLE}`,
     description: 'Habilitar terminales',
-    resource: MODULES.TERMINAL,
+    resource: MODULES.TERMINALS,
     action: ACTIONS.ENABLE,
   },
   {
-    key: `${MODULES.TERMINAL}.${ACTIONS.DISABLE}`,
+    key: `${MODULES.TERMINALS}.${ACTIONS.DISABLE}`,
     description: 'Deshabilitar terminales',
-    resource: MODULES.TERMINAL,
+    resource: MODULES.TERMINALS,
     action: ACTIONS.DISABLE,
   },
 
@@ -389,69 +377,103 @@ export const SYSTEM_PERMISSIONS = [
     action: ACTIONS.ROTATE,
   },
 
-  // ===== ISSUERS =====
+  // ===== MERCHANTS =====
   {
-    key: `${MODULES.ISSUERS}.${ACTIONS.READ}`,
-    description: 'Leer metadata de emisores',
-    resource: MODULES.ISSUERS,
+    key: `${MODULES.MERCHANTS}.${ACTIONS.CREATE}`,
+    description: 'Crear metadata de comercios',
+    resource: MODULES.MERCHANTS,
+    action: ACTIONS.CREATE,
+  },
+  {
+    key: `${MODULES.MERCHANTS}.${ACTIONS.READ}`,
+    description: 'Leer metadata de comercios',
+    resource: MODULES.MERCHANTS,
     action: ACTIONS.READ,
   },
   {
-    key: `${MODULES.ISSUERS}.${ACTIONS.EXPORT}`,
-    description: 'Exportar metadata de emisores',
-    resource: MODULES.ISSUERS,
+    key: `${MODULES.MERCHANTS}.${ACTIONS.UPDATE}`,
+    description: 'Actualizar metadata de comercios',
+    resource: MODULES.MERCHANTS,
+    action: ACTIONS.UPDATE,
+  },
+  {
+    key: `${MODULES.MERCHANTS}.${ACTIONS.DELETE}`,
+    description: 'Eliminar metadata de comercios',
+    resource: MODULES.MERCHANTS,
+    action: ACTIONS.DELETE,
+  },
+  {
+    key: `${MODULES.MERCHANTS}.${ACTIONS.EXPORT}`,
+    description: 'Exportar metadata de comercios',
+    resource: MODULES.MERCHANTS,
     action: ACTIONS.EXPORT,
   },
+
+  // ===== TRANSACTIONS =====
   {
-    key: `${MODULES.ISSUERS}.${ACTIONS.ZPK_CREATE}`,
-    description: 'Crear/registrar ZPK de emisor',
-    resource: MODULES.ISSUERS,
-    action: ACTIONS.ZPK_CREATE,
+    key: `${MODULES.TRANSACTIONS}.${ACTIONS.CREATE}`,
+    description: 'Crear metadata de transacciones',
+    resource: MODULES.TRANSACTIONS,
+    action: ACTIONS.CREATE,
   },
   {
-    key: `${MODULES.ISSUERS}.${ACTIONS.ZPK_ROTATE}`,
-    description: 'Rotar ZPK de emisor',
-    resource: MODULES.ISSUERS,
-    action: ACTIONS.ZPK_ROTATE,
+    key: `${MODULES.TRANSACTIONS}.${ACTIONS.READ}`,
+    description: 'Leer metadata de transacciones',
+    resource: MODULES.TRANSACTIONS,
+    action: ACTIONS.READ,
   },
   {
-    key: `${MODULES.ISSUERS}.${ACTIONS.ZPK_REVOKE}`,
-    description: 'Revocar ZPK de emisor',
-    resource: MODULES.ISSUERS,
-    action: ACTIONS.ZPK_REVOKE,
+    key: `${MODULES.TRANSACTIONS}.${ACTIONS.UPDATE}`,
+    description: 'Actualizar metadata de transacciones',
+    resource: MODULES.TRANSACTIONS,
+    action: ACTIONS.UPDATE,
   },
   {
-    key: `${MODULES.ISSUERS}.${ACTIONS.ZPK_READ_METADATA}`,
-    description: 'Leer metadata de ZPK',
-    resource: MODULES.ISSUERS,
-    action: ACTIONS.ZPK_READ_METADATA,
+    key: `${MODULES.TRANSACTIONS}.${ACTIONS.DELETE}`,
+    description: 'Eliminar metadata de transacciones',
+    resource: MODULES.TRANSACTIONS,
+    action: ACTIONS.DELETE,
   },
   {
-    key: `${MODULES.ISSUERS}.${ACTIONS.TRANSFORM_PINBLOCK}`,
-    description: 'Autorizar transformación de PIN-block',
-    resource: MODULES.ISSUERS,
-    action: ACTIONS.TRANSFORM_PINBLOCK,
+    key: `${MODULES.TRANSACTIONS}.${ACTIONS.EXPORT}`,
+    description: 'Exportar metadata de transacciones',
+    resource: MODULES.TRANSACTIONS,
+    action: ACTIONS.EXPORT,
+  },
+
+  // ===== CARDS =====
+  {
+    key: `${MODULES.CARDS}.${ACTIONS.CREATE}`,
+    description: 'Crear metadata de tarjetas',
+    resource: MODULES.CARDS,
+    action: ACTIONS.CREATE,
   },
   {
-    key: `${MODULES.ISSUERS}.${ACTIONS.EXPORT_METADATA}`,
-    description: 'Exportar metadata de operaciones (sin payloads)',
-    resource: MODULES.ISSUERS,
-    action: ACTIONS.EXPORT_METADATA,
+    key: `${MODULES.CARDS}.${ACTIONS.READ}`,
+    description: 'Leer metadata de tarjetas',
+    resource: MODULES.CARDS,
+    action: ACTIONS.READ,
+  },
+  {
+    key: `${MODULES.CARDS}.${ACTIONS.UPDATE}`,
+    description: 'Actualizar metadata de tarjetas',
+    resource: MODULES.CARDS,
+    action: ACTIONS.UPDATE,
+  },
+  {
+    key: `${MODULES.CARDS}.${ACTIONS.DELETE}`,
+    description: 'Eliminar metadata de tarjetas',
+    resource: MODULES.CARDS,
+    action: ACTIONS.DELETE,
+  },
+  {
+    key: `${MODULES.CARDS}.${ACTIONS.EXPORT}`,
+    description: 'Exportar metadata de tarjetas',
+    resource: MODULES.CARDS,
+    action: ACTIONS.EXPORT,
   },
 
   // ===== EXTERNAL_SERVICE =====
-  {
-    key: `${MODULES.EXTERNAL_SERVICE}.${ACTIONS.INVOKE}`,
-    description: 'Invocar servicio externo',
-    resource: MODULES.EXTERNAL_SERVICE,
-    action: ACTIONS.INVOKE,
-  },
-  {
-    key: `${MODULES.EXTERNAL_SERVICE}.${ACTIONS.READ_STATUS}`,
-    description: 'Leer estado del servicio externo',
-    resource: MODULES.EXTERNAL_SERVICE,
-    action: ACTIONS.READ_STATUS,
-  },
   {
     key: `${MODULES.EXTERNAL_SERVICE}.${ACTIONS.EXPORT}`,
     description: 'Exportar health/latencias/errores agregados',
@@ -459,9 +481,9 @@ export const SYSTEM_PERMISSIONS = [
     action: ACTIONS.EXPORT,
   },
   {
-    key: `${MODULES.EXTERNAL_SERVICE}.${ACTIONS.ROTATE_INTEGRATION}`,
+    key: `${MODULES.EXTERNAL_SERVICE}.${ACTIONS.ROTATE}`,
     description: 'Rotar credenciales de integración',
     resource: MODULES.EXTERNAL_SERVICE,
-    action: ACTIONS.ROTATE_INTEGRATION,
+    action: ACTIONS.ROTATE,
   },
 ];

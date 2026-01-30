@@ -1,21 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 import { HydratedDocument } from 'mongoose';
-import { v4 as uuidv4 } from 'uuid';
 
 import { ActivityEvent, ActivityEventSchema } from './activity-event.schema';
 import { SecurityInfo, SecurityInfoSchema } from './security-info.schema';
 
 import { UserStatus } from '../../domain/enums';
 import { Role } from 'src/modules/authz/schemas/role.schema';
+import { AbstractSchema } from 'src/common/schemas/abstract.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true, collection: 'users' })
-export class User {
-  @Prop({ required: true, unique: true, index: true, default: () => uuidv4() })
-  id: string;
-
+export class User extends AbstractSchema {
   @Prop({ type: String, trim: true })
   email?: string;
 
@@ -40,14 +37,8 @@ export class User {
   @Prop({ type: String })
   avatarUrl?: string;
 
-  @Prop({ type: String })
-  roleKey?: string;
-
-  @Prop({ type: String, required: false, ref: 'User' })
-  userId?: string;
-
   @Prop({ type: String, required: true, ref: 'Role' })
-  roleId: string;
+  roleKey: string;
 
   @Prop({ type: Boolean, default: false })
   isSystemAdmin?: boolean;
@@ -69,12 +60,6 @@ export class User {
   @Prop({ type: Object })
   metadata?: Record<string, any>;
 
-  @Prop({ type: Date, default: Date.now })
-  createdAt?: Date;
-
-  @Prop({ type: Date, default: Date.now })
-  updatedAt?: Date;
-
   @Prop({ type: Date })
   lastActive?: Date;
 
@@ -93,8 +78,8 @@ UserSchema.index({ lastActive: -1 });
 
 UserSchema.virtual('role', {
   ref: 'Role',
-  localField: 'roleId',
-  foreignField: 'id',
+  localField: 'roleKey',
+  foreignField: 'key',
   justOne: true,
 });
 
