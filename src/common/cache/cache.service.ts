@@ -4,6 +4,7 @@ import Redis from 'ioredis';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 
 import { ICacheService } from './cache.interface';
+import { ConfigService } from '@nestjs/config';
 
 /**
  * In-memory cache implementation using Map with TTL support.
@@ -15,11 +16,19 @@ export class CacheService implements ICacheService {
 
   // Private properties
   private ttl: number = 60; // Default TTL en segundos
+  private readonly rootKey: string = '';
 
   /**
    * Constructor
    */
-  constructor(@InjectRedis() private readonly _redisClient: Redis) {}
+  constructor(
+    @InjectRedis() private readonly _redisClient: Redis,
+    private readonly configService: ConfigService,
+  ) {
+    // Obtener root key from env variable
+    const rootKeyFromEnv = this.configService.get<string>('REDIS_ROOT_KEY');
+    this.rootKey = rootKeyFromEnv ? rootKeyFromEnv : '';
+  }
 
   /**
    * La función establece un valor en el caché usando una clave específica.
@@ -36,7 +45,7 @@ export class CacheService implements ICacheService {
     // Convertir ttl de segundos a millisegundos
     const ttlInMilliseconds = ttl === 0 ? 0 : ttl * 1000;
     await this._redisClient.set(
-      key,
+      `${this.rootKey}:${key}`,
       JSON.stringify(value),
       'PX',
       ttlInMilliseconds,
@@ -50,7 +59,7 @@ export class CacheService implements ICacheService {
    * @returns Se devuelve el valor recuperado del caché con la clave proporcionada. Si la clave no existe, se devuelve null.
    */
   async getByKey<T>(key: string): Promise<T | null> {
-    const value = await this._redisClient.get(key);
+    const value = await this._redisClient.get(`${this.rootKey}:${key}`);
     return value ? (JSON.parse(value) as T) : null;
   }
 
@@ -61,7 +70,7 @@ export class CacheService implements ICacheService {
    * @returns Se devuelve el valor recuperado del caché que coincide con el patrón proporcionado. Si no se encuentra ninguna coincidencia, se devuelve null.
    */
   async getByPattern<T>(pattern: string): Promise<T | null> {
-    const keys = await this._redisClient.keys(pattern);
+    const keys = await this._redisClient.keys(`${this.rootKey}:${pattern}`);
     if (keys.length === 0) {
       return null;
     }
@@ -76,7 +85,7 @@ export class CacheService implements ICacheService {
    * @param {string} key - Una cadena que representa la clave que se desea eliminar del caché.
    */
   async delete(key: string): Promise<void> {
-    await this._redisClient.del(key);
+    await this._redisClient.del(`${this.rootKey}:${key}`);
   }
 
   /**
