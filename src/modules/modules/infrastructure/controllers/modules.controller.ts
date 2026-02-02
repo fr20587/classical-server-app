@@ -13,7 +13,6 @@ import {
   HttpCode,
   HttpStatus,
   Res,
-  Req,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -25,6 +24,8 @@ import {
   ApiBadRequestResponse,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
+  ApiSecurity,
+  ApiHeader,
 } from '@nestjs/swagger';
 import { ModulesService } from '../../application/modules.service';
 import { NavigationService } from '../../application/navigation.service';
@@ -33,20 +34,23 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { Permissions } from 'src/modules/auth/decorators/permissions.decorator';
 import { PermissionsGuard } from 'src/modules/authz/guards/permissions.guard';
 
-
-
 /**
  * ModulesController - Endpoints REST para gestión de módulos
  * Ruta base: /modules
- * 
+ *
  * Seguridad:
  * - Todos los endpoints requieren Bearer token JWT
  * - Validación de permisos con @Permissions()
  */
 @ApiTags('Modules')
-@ApiBearerAuth()
-@Controller('modules')
+@ApiBearerAuth('access-token')
+@ApiSecurity('access-key')
+@ApiHeader({
+  name: 'x-api-key',
+  required: true,
+})
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@Controller('modules')
 export class ModulesController {
   constructor(
     private readonly modulesService: ModulesService,
@@ -126,7 +130,10 @@ export class ModulesController {
     description: 'Unauthorized',
   })
   @Permissions('modules.update')
-  async reorderModules(@Res() res: Response, @Body() reorderDto: ReorderModulesDto): Promise<Response> {
+  async reorderModules(
+    @Res() res: Response,
+    @Body() reorderDto: ReorderModulesDto,
+  ): Promise<Response> {
     const response = await this.modulesService.reorderModules(reorderDto);
     return res.status(response.statusCode).json(response);
   }
@@ -179,7 +186,10 @@ export class ModulesController {
     description: 'Unauthorized',
   })
   @Permissions('modules.read')
-  async findById(@Res() res: Response, @Param('id') id: string): Promise<Response> {
+  async findById(
+    @Res() res: Response,
+    @Param('id') id: string,
+  ): Promise<Response> {
     const response = await this.modulesService.findById(id);
     return res.status(response.statusCode).json(response);
   }
@@ -193,7 +203,8 @@ export class ModulesController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create module',
-    description: 'Creates a new module and auto-generates permissions from actions',
+    description:
+      'Creates a new module and auto-generates permissions from actions',
   })
   @ApiCreatedResponse({
     description: 'Module created successfully',
@@ -206,7 +217,10 @@ export class ModulesController {
     description: 'Unauthorized',
   })
   @Permissions('modules.create')
-  async create(@Res() res: Response, @Body() createModuleDto: CreateModuleDto): Promise<Response> {
+  async create(
+    @Res() res: Response,
+    @Body() createModuleDto: CreateModuleDto,
+  ): Promise<Response> {
     const response = await this.modulesService.create(createModuleDto);
     return res.status(response.statusCode).json(response);
   }
@@ -259,7 +273,8 @@ export class ModulesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Disable module',
-    description: 'Disables a module (soft-delete). Only non-system modules can be disabled',
+    description:
+      'Disables a module (soft-delete). Only non-system modules can be disabled',
   })
   @ApiParam({
     name: 'id',
@@ -279,7 +294,10 @@ export class ModulesController {
     description: 'Unauthorized',
   })
   @Permissions('modules.disable')
-  async disable(@Res() res: Response, @Param('id') id: string): Promise<Response> {
+  async disable(
+    @Res() res: Response,
+    @Param('id') id: string,
+  ): Promise<Response> {
     const response = await this.modulesService.disable(id);
     return res.status(response.statusCode).json(response);
   }
@@ -313,7 +331,10 @@ export class ModulesController {
     description: 'Unauthorized',
   })
   @Permissions('modules.delete')
-  async delete(@Res() res: Response, @Param('id') id: string): Promise<Response> {
+  async delete(
+    @Res() res: Response,
+    @Param('id') id: string,
+  ): Promise<Response> {
     const response = await this.modulesService.hardDelete(id);
     return res.status(response.statusCode).json(response);
   }

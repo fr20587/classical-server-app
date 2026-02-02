@@ -19,6 +19,7 @@ import {
   ApiBadRequestResponse,
   ApiUnauthorizedResponse,
   ApiHeader,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { UsersService } from 'src/modules/users/application/users.service';
@@ -35,13 +36,14 @@ import { UpdateMyPasswordDto, UpdateUserDto } from 'src/modules/users/dto';
  * - Auditoría end-to-end en servicio
  */
 @ApiTags('Profile')
-@ApiBearerAuth()
+@ApiBearerAuth('access-token')
+@ApiSecurity('access-key')
 @ApiHeader({
   name: 'x-api-key',
   required: true,
 })
-@Controller('profile')
 @UseGuards(JwtAuthGuard)
+@Controller('profile')
 export class ProfileController {
   constructor(
     private readonly usersService: UsersService,

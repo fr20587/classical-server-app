@@ -18,6 +18,7 @@ import {
   ApiCreatedResponse,
   ApiTooManyRequestsResponse,
   ApiHeader,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AuthService } from '../../application/auth.service';
@@ -42,6 +43,7 @@ import { ApiKeyGuard } from '../../guards/api-key.guard';
   name: 'x-api-key',
   required: true,
 })
+@ApiSecurity('access-key')
 @UseGuards(ApiKeyGuard)
 @Controller('auth')
 export class AuthController {

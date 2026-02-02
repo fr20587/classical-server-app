@@ -20,13 +20,18 @@ import {
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
   ApiForbiddenResponse,
+  ApiSecurity,
+  ApiHeader,
 } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from 'src/modules/authz/guards/permissions.guard';
 import { Permissions } from 'src/modules/auth/decorators/permissions.decorator';
 import type { QueryParams, SortOrder } from 'src/common/types/common.types';
-import { AuditLogService, AuditFilterParams } from '../../application/audit-log.service';
+import {
+  AuditLogService,
+  AuditFilterParams,
+} from '../../application/audit-log.service';
 
 /**
  * AuditController: Endpoints HTTP para consulta de logs de auditoría
@@ -38,13 +43,16 @@ import { AuditLogService, AuditFilterParams } from '../../application/audit-log.
  * - Documentación Swagger completa
  */
 @ApiTags('Audit')
-@ApiBearerAuth()
-@Controller('audit')
+@ApiBearerAuth('access-token')
+@ApiSecurity('access-key')
+@ApiHeader({
+  name: 'x-api-key',
+  required: true,
+})
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@Controller('audit')
 export class AuditController {
-  constructor(
-    private readonly auditLogService: AuditLogService,
-  ) {}
+  constructor(private readonly auditLogService: AuditLogService) {}
 
   /**
    * Obtener lista de logs de auditoría con paginación y filtros
@@ -76,7 +84,8 @@ export class AuditController {
     name: 'search',
     required: false,
     type: String,
-    description: 'Global search across action, actorKid, resourceType, endpoint',
+    description:
+      'Global search across action, actorKid, resourceType, endpoint',
     example: 'LOGIN',
   })
   @ApiQuery({
@@ -343,7 +352,10 @@ export class AuditController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<Response> {
-    const apiResponse = await this.auditLogService.getSummary(startDate, endDate);
+    const apiResponse = await this.auditLogService.getSummary(
+      startDate,
+      endDate,
+    );
     return res.status(apiResponse.statusCode).json(apiResponse);
   }
 }

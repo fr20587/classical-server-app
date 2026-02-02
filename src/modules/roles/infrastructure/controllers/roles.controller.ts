@@ -26,6 +26,8 @@ import {
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
   ApiNoContentResponse,
+  ApiSecurity,
+  ApiHeader,
 } from '@nestjs/swagger';
 import { RolesService } from '../../application/roles.service';
 import { CreateRoleDto } from '../../dto/create-role.dto';
@@ -37,7 +39,6 @@ import { Permissions } from '../../../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from 'src/modules/authz/guards/permissions.guard';
 
-
 /**
  * RolesController: Endpoints HTTP para gestión de roles
  *
@@ -48,13 +49,16 @@ import { PermissionsGuard } from 'src/modules/authz/guards/permissions.guard';
  * - Auditoría end-to-end de todas las operaciones
  */
 @ApiTags('Roles')
-@ApiBearerAuth()
-@Controller('roles')
+@ApiBearerAuth('access-token')
+@ApiSecurity('access-key')
+@ApiHeader({
+  name: 'x-api-key',
+  required: true,
+})
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@Controller('roles')
 export class RolesController {
-  constructor(
-    private readonly rolesService: RolesService,
-  ) {}
+  constructor(private readonly rolesService: RolesService) {}
 
   /**
    * Crear nuevo rol
@@ -82,9 +86,8 @@ export class RolesController {
     @Body() createRoleDto: CreateRoleDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const response: ApiResponse<Role> = await this.rolesService.create(
-      createRoleDto,
-    );
+    const response: ApiResponse<Role> =
+      await this.rolesService.create(createRoleDto);
 
     return res.status(response.statusCode).json(response);
   }
@@ -178,9 +181,7 @@ export class RolesController {
       throw new BadRequestException('Key parameter is required');
     }
 
-    const response: ApiResponse<Role> = await this.rolesService.findByKey(
-      key,
-    );
+    const response: ApiResponse<Role> = await this.rolesService.findByKey(key);
 
     return res.status(response.statusCode).json(response);
   }
@@ -222,9 +223,7 @@ export class RolesController {
       throw new BadRequestException('ID parameter is required');
     }
 
-    const response: ApiResponse<Role> = await this.rolesService.findById(
-      id,
-    );
+    const response: ApiResponse<Role> = await this.rolesService.findById(id);
 
     return res.status(response.statusCode).json(response);
   }
@@ -314,9 +313,7 @@ export class RolesController {
       throw new BadRequestException('ID parameter is required');
     }
 
-    const response: ApiResponse<Role> = await this.rolesService.disable(
-      id,
-    );
+    const response: ApiResponse<Role> = await this.rolesService.disable(id);
 
     return res.status(response.statusCode).json(response);
   }
@@ -358,9 +355,8 @@ export class RolesController {
       throw new BadRequestException('ID parameter is required');
     }
 
-    const response: ApiResponse<string> = await this.rolesService.hardDelete(
-      id,
-    );
+    const response: ApiResponse<string> =
+      await this.rolesService.hardDelete(id);
 
     return res.status(response.statusCode).json(response);
   }
@@ -404,10 +400,8 @@ export class RolesController {
       throw new BadRequestException('ID parameter is required');
     }
 
-    const response: ApiResponse<Role> = await this.rolesService.updatePermissions(
-      id,
-      updatePermissionsDto,
-    );
+    const response: ApiResponse<Role> =
+      await this.rolesService.updatePermissions(id, updatePermissionsDto);
 
     return res.status(response.statusCode).json(response);
   }

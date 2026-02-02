@@ -25,6 +25,7 @@ import {
   ApiUnauthorizedResponse,
   ApiNoContentResponse,
   ApiHeader,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from 'src/modules/authz/guards/permissions.guard';
@@ -49,13 +50,14 @@ import { MODULES, ACTIONS } from 'src/modules/authz/authz.constants';
  * - Auditoría end-to-end en servicio
  */
 @ApiTags('Users')
-@ApiBearerAuth()
+@ApiBearerAuth('access-token')
+@ApiSecurity('access-key')
 @ApiHeader({
   name: 'x-api-key',
   required: true,
 })
-@Controller('users')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@Controller('users')
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,

@@ -77,7 +77,6 @@ export class Tenant extends AbstractSchema {
   @Prop({
     type: String,
     required: true,
-    unique: true,
     lowercase: true,
     match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   })
@@ -100,7 +99,6 @@ export class Tenant extends AbstractSchema {
     enum: Object.values(TenantStatus),
     default: TenantStatus.PENDING_REVIEW,
     required: true,
-    index: true,
   })
   status: TenantStatus;
 

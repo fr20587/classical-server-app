@@ -1,7 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+
 import { HydratedDocument } from 'mongoose';
+
 import { AbstractSchema } from 'src/common/schemas/abstract.schema';
+
 import { TenantStatus } from '../../domain/enums';
+
+export type TenantLifecycleDocument = HydratedDocument<TenantLifecycle>;
 
 /**
  * Subdocumento para información del usuario que disparó la transición
@@ -33,7 +38,6 @@ export class TenantLifecycle extends AbstractSchema {
   @Prop({
     type: String,
     required: true,
-    index: true,
   })
   tenantId: string;
 
@@ -54,7 +58,6 @@ export class TenantLifecycle extends AbstractSchema {
     type: String,
     enum: Object.values(TenantStatus),
     required: true,
-    index: true,
   })
   toState: TenantStatus;
 
@@ -84,7 +87,6 @@ export class TenantLifecycle extends AbstractSchema {
     type: Date,
     default: Date.now,
     required: true,
-    index: true,
   })
   timestamp: Date;
 
@@ -99,7 +101,6 @@ export class TenantLifecycle extends AbstractSchema {
   xstateSnapshot?: Record<string, any>;
 }
 
-export type TenantLifecycleDocument = HydratedDocument<TenantLifecycle>;
 export const TenantLifecycleSchema =
   SchemaFactory.createForClass(TenantLifecycle);
 

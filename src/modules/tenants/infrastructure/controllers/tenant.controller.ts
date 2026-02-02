@@ -24,6 +24,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
+  ApiSecurity,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -48,7 +49,8 @@ import type { QueryParams, SortOrder } from 'src/common/types';
  * Todos los endpoints requieren autenticación JWT
  */
 @ApiTags('Tenants')
-@ApiBearerAuth()
+@ApiBearerAuth('access-token')
+@ApiSecurity('access-key')
 @ApiHeader({
   name: 'x-api-key',
   required: true,
