@@ -24,6 +24,33 @@ class BusinessAddress {
 }
 
 /**
+ * Subdocumento para configuración de webhooks
+ * Almacena URLs y secrets para notificaciones de eventos
+ */
+class WebhookConfig {
+  @Prop({ type: String, required: true })
+  id: string; // UUID único por webhook
+
+  @Prop({ type: String, required: true })
+  url: string; // URL donde se enviarán los webhooks
+
+  @Prop({ type: [String], required: true, default: [] })
+  events: string[]; // Eventos a los que suscribirse (ej: 'transaction.created', 'transaction.confirmed')
+
+  @Prop({ type: Boolean, default: true })
+  active: boolean; // Si el webhook está activo
+
+  @Prop({ type: String, required: true })
+  secret: string; // Secret para firmar webhooks (HMAC-SHA256)
+
+  @Prop({ type: Date, default: Date.now })
+  createdAt: Date;
+
+  @Prop({ type: Date, default: Date.now })
+  updatedAt: Date;
+}
+
+/**
  * Schema principal para Tenants (negocios registrados en la plataforma)
  */
 @Schema({
@@ -120,6 +147,16 @@ export class Tenant extends AbstractSchema {
   })
   notes?: string;
 
+  /**
+   * Webhooks configurados para este tenant
+   * Array de configuraciones de webhook con URLs, events, y secrets
+   */
+  @Prop({
+    type: [Object],
+    default: [],
+  })
+  webhooks: WebhookConfig[];
+
   maskedPan?: string;
   unmaskPan?: string;
 }
@@ -134,3 +171,5 @@ TenantSchema.index({ email: 1 });
 TenantSchema.index({ status: 1 });
 TenantSchema.index({ createdAt: 1 });
 TenantSchema.index({ createdBy: 1 });
+TenantSchema.index({ 'webhooks.url': 1 }, { sparse: true }); // Para búsquedas de webhooks por URL
+

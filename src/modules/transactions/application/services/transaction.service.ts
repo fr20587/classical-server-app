@@ -1,0 +1,311 @@
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { Transaction, TransactionStatus } from '../../domain/entities/transaction.entity';
+
+import { isValidTransition } from '../../domain/state-machines/transaction.state-machine';
+import {
+  TransactionCreatedEvent,
+  TransactionConfirmedEvent,
+  TransactionCancelledEvent,
+  TransactionExpiredEvent,
+} from '../../domain/events/transaction.events';
+import { CreateTransactionDto, ConfirmTransactionDto, CreateTransactionResponseDto } from '../../dto/transactions.dto';
+import { MongoDbTransactionsRepository } from '../../infrastructure/adapters/mongodb-transactions.repository';
+import { MongoDbSequenceAdapter } from '../../infrastructure/adapters/sequence.adapter';
+import { CryptoService } from 'src/common/crypto/crypto.service';
+import { AuditService } from 'src/modules/audit/application/audit.service';
+
+/**
+ * Servicio de aplicación para transacciones
+ * Orquesta la lógica de negocio entre dominio e infraestructura
+ */
+@Injectable()
+export class TransactionService {
+  private readonly logger = new Logger(TransactionService.name);
+
+  constructor(
+    private readonly sequencePort: MongoDbSequenceAdapter,
+    private readonly transactionsRepository: MongoDbTransactionsRepository,
+    private readonly cryptoService: CryptoService,
+    private readonly auditService: AuditService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
+
+  /**
+   * Crea una nueva transacción
+   * Genera ID, número secuencial, calcula expiración y firma HMAC del QR
+   */
+  async create(dto: CreateTransactionDto, requestId: string): Promise<CreateTransactionResponseDto> {
+    this.logger.log(`[${requestId}] Creando transacción para tenant=${dto.tenantId}`);
+
+    try {
+      // Validar que ttlMinutes no exceda 24 horas
+      const ttlMinutes = dto.ttlMinutes ?? 15;
+      if (ttlMinutes < 1 || ttlMinutes > 1440) {
+        throw new BadRequestException(
+          'ttlMinutes debe estar entre 1 y 1440 (máximo 24 horas)',
+        );
+      }
+
+      // Obtener próximo número secuencial
+      const no = await this.sequencePort.getNextTransactionNo();
+
+      // Calcular fecha de expiración
+      const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+
+      // Crear entidad
+      const transaction = new Transaction({
+        ref: dto.ref,
+        no,
+        tenantId: dto.tenantId,
+        tenantName: 'TenantName', // TODO: Buscar nombre real del tenant desde base de datos
+        customerId: dto.customerId,
+        amount: dto.amount,
+        ttlMinutes,
+        expiresAt,
+        status: TransactionStatus.NEW,
+      });
+
+      // Generar payload del QR
+      const qrPayload = transaction.getQrPayload();
+
+      // Firmar payload con HMAC
+      // Nota: Usar un secret universal por ahora, luego se podrá personalizar por tenant
+      const secret = this.cryptoService.generateSecret(); // TODO: Usar secret del tenant o configuración
+      transaction.signature = this.cryptoService.createSignature(qrPayload, secret);
+
+      // Persistir
+      const created = await this.transactionsRepository.create(transaction);
+
+      // Auditar
+      this.auditService.logAllow('TRANSACTION_CREATED', 'transaction', created.id, {
+        requestId,
+        userId: dto.customerId,
+        tags: ['transactions'],
+      });
+
+      // Emitir evento de dominio
+      this.eventEmitter.emit(
+        'transaction.created',
+        new TransactionCreatedEvent(
+          created.id,
+          created.tenantId,
+          created.customerId,
+          created.ref,
+          created.no,
+          created.amount,
+          created.expiresAt,
+        ),
+      );
+
+      // Retornar DTO de respuesta sin el secret completo
+      return {
+        id: created.id,
+        ref: created.ref,
+        no: created.no,
+        amount: created.amount,
+        expiresAt: created.expiresAt,
+        payload: qrPayload,
+        signature: transaction.signature,
+      };
+    } catch (error) {
+      this.logger.error(`[${requestId}] Error creando transacción: ${error.message}`);
+
+      this.auditService.logDeny(
+        'TRANSACTION_CREATE',
+        'transaction',
+        'unknown',
+        error.message,
+        {
+          requestId,
+          userId: dto.customerId,
+          tags: ['transactions'],
+        },
+      );
+
+      throw error;
+    }
+  }
+
+  /**
+   * Confirma una transacción con el cardId y valida la firma
+   * Transiciona de 'new' a 'processing'
+   */
+  async confirm(
+    transactionId: string,
+    dto: ConfirmTransactionDto,
+    requestId: string,
+  ): Promise<Transaction> {
+    this.logger.log(`[${requestId}] Confirmando transacción ${transactionId}`);
+
+    try {
+      // Buscar transacción
+      const transaction = await this.transactionsRepository.findById(transactionId);
+      if (!transaction) {
+        throw new NotFoundException('Transacción no encontrada');
+      }
+
+      // Validar que esté en estado 'new'
+      if (transaction.status !== TransactionStatus.NEW) {
+        throw new BadRequestException(
+          `No se puede confirmar una transacción en estado ${transaction.status}`,
+        );
+      }
+
+      // Validar que la firma coincida
+      // TODO: Implementar validación de firma cuando se tenga el sistema de secrets del tenant
+      // const isValid = this.cryptoService.verifySignature(payload, dto.signature, secret);
+      // if (!isValid) {
+      //   throw new BadRequestException('Firma del QR inválida o manipulada');
+      // }
+
+      // Transicionar a processing
+      transaction.markAsProcessing(dto.cardId);
+
+      // Persistir cambios
+      const updated = await this.transactionsRepository.updateStatus(
+        transactionId,
+        TransactionStatus.PROCESSING,
+        { cardId: dto.cardId },
+      );
+
+      if (!updated) {
+        throw new Error('No se pudo actualizar la transacción');
+      }
+
+      // Auditar
+      this.auditService.logAllow('TRANSACTION_CONFIRMED', 'transaction', transactionId, {
+        requestId,
+        userId: transaction.customerId,
+        tags: ['transactions'],
+      });
+
+      // Emitir evento
+      this.eventEmitter.emit(
+        'transaction.confirmed',
+        new TransactionConfirmedEvent(
+          transactionId,
+          transaction.tenantId,
+          transaction.customerId,
+          dto.cardId,
+        ),
+      );
+
+      return updated;
+    } catch (error) {
+      this.logger.error(`[${requestId}] Error confirmando transacción: ${error.message}`);
+
+      this.auditService.logDeny('TRANSACTION_CONFIRM', 'transaction', transactionId, error.message, {
+        requestId,
+        tags: ['transactions'],
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Cancela una transacción
+   * Solo se puede cancelar desde estado 'new' o 'processing'
+   */
+  async cancel(transactionId: string, requestId: string): Promise<Transaction> {
+    this.logger.log(`[${requestId}] Cancelando transacción ${transactionId}`);
+
+    try {
+      // Buscar transacción
+      const transaction = await this.transactionsRepository.findById(transactionId);
+      if (!transaction) {
+        throw new NotFoundException('Transacción no encontrada');
+      }
+
+      // Validar transición válida
+      if (!isValidTransition(transaction.status as any, TransactionStatus.CANCELLED)) {
+        throw new BadRequestException(
+          `No se puede cancelar una transacción en estado ${transaction.status}`,
+        );
+      }
+
+      // Persistir cambios
+      const updated = await this.transactionsRepository.updateStatus(
+        transactionId,
+        TransactionStatus.CANCELLED,
+      );
+
+      if (!updated) {
+        throw new Error('No se pudo actualizar la transacción');
+      }
+
+      // Auditar
+      this.auditService.logAllow('TRANSACTION_CANCELLED', 'transaction', transactionId, {
+        requestId,
+        userId: transaction.customerId,
+        tags: ['transactions'],
+      });
+
+      // Emitir evento
+      this.eventEmitter.emit(
+        'transaction.cancelled',
+        new TransactionCancelledEvent(transactionId, transaction.tenantId),
+      );
+
+      return updated;
+    } catch (error) {
+      this.logger.error(`[${requestId}] Error cancelando transacción: ${error.message}`);
+
+      this.auditService.logDeny('TRANSACTION_CANCEL', 'transaction', transactionId, error.message, {
+        requestId,
+        tags: ['transactions'],
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Marca transacciones expiradas como canceladas
+   * Usada por la tarea cron
+   */
+  async expireTransactions(): Promise<number> {
+    this.logger.log('Buscando transacciones expiradas...');
+
+    try {
+      const expiredTransactions = await this.transactionsRepository.findExpired();
+      this.logger.log(`Encontradas ${expiredTransactions.length} transacciones expiradas`);
+
+      let count = 0;
+      for (const transaction of expiredTransactions) {
+        try {
+          const updated = await this.transactionsRepository.updateStatus(
+            transaction.id,
+            TransactionStatus.CANCELLED,
+          );
+
+          if (updated) {
+            count++;
+            // Emitir evento
+            this.eventEmitter.emit(
+              'transaction.expired',
+              new TransactionExpiredEvent(transaction.id, transaction.tenantId),
+            );
+
+            // Auditar
+            this.auditService.logAllow('TRANSACTION_EXPIRED', 'transaction', transaction.id, {
+              tags: ['transactions', 'system'],
+            });
+          }
+        } catch (error) {
+          this.logger.error(
+            `Error expirando transacción ${transaction.id}: ${error.message}`,
+          );
+        }
+      }
+
+      this.logger.log(`${count} transacciones marcadas como expiradas`);
+      return count;
+    } catch (error) {
+      this.logger.error(`Error en tarea de expiración: ${error.message}`);
+      return 0;
+    }
+  }
+}

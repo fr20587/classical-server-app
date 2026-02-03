@@ -16,6 +16,7 @@ import { CardsModule } from './modules/cards/cards.module';
 import { ModulesModule } from './modules/modules';
 import { SharedContextModule } from './shared/shared-context.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
+import { TransactionsModule } from './modules/transactions/transactions.module';
 import { UsersModule } from './modules/users/users.module';
 import { VaultModule } from './modules/vault/vault.module';
 
@@ -61,6 +62,7 @@ import { RolesModule } from './modules/roles/roles.module';
     PermissionsModule,
     RolesModule,
     TenantsModule,
+    TransactionsModule,
     // TerminalsModule,
     UsersModule,
     VaultModule,

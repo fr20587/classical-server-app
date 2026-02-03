@@ -4,7 +4,9 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { PermissionsModule } from '../permissions/permissions.module';
 import { AuditModule } from '../audit/audit.module';
+import { CryptoModule } from '../../common/crypto/crypto.module';
 import { TenantsService } from './application/tenant.service';
+import { TenantWebhooksService } from './application/services/tenant-webhooks.service';
 import { TenantController } from './infrastructure/controllers/tenant.controller';
 import { TenantRepository } from './infrastructure/adapters/tenant.repository';
 import { TenantLifecycleRepository } from './infrastructure/adapters/tenant-lifecycle.repository';
@@ -24,12 +26,14 @@ import { AsyncContextService } from 'src/common/context';
  * - Máquina de estados con xstate
  * - Almacenamiento de datos sensibles en Vault (Luhn + PAN)
  * - Historial de ciclo de vida en MongoDB
+ * - Gestión de webhooks para notificaciones de eventos
  * - Endpoints documentados con Swagger
  */
 @Module({
   imports: [
     PermissionsModule,
     AuditModule,
+    CryptoModule,
     EventEmitterModule.forRoot(),
     MongooseModule.forFeature([
       {
@@ -45,11 +49,12 @@ import { AsyncContextService } from 'src/common/context';
   providers: [
     AsyncContextService,
     TenantsService,
+    TenantWebhooksService,
     TenantRepository,
     TenantLifecycleRepository,
     TenantVaultService,
   ],
   controllers: [TenantController],
-  exports: [TenantsService, TenantRepository],
+  exports: [TenantsService, TenantRepository, TenantWebhooksService],
 })
 export class TenantsModule {}

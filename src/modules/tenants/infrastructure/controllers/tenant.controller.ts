@@ -4,14 +4,18 @@ import {
   Body,
   Controller,
   Get,
+  Post,
+  Put,
+  Delete,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
-  Post,
   Query,
   Res,
   UseGuards,
+  Inject,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -42,6 +46,14 @@ import {
   TenantPaginatedResponseDto,
   TenantLifecyclePaginatedResponseDto,
 } from 'src/modules/tenants/dto';
+import { TenantWebhooksService } from 'src/modules/tenants/application/services/tenant-webhooks.service';
+import {
+  CreateTenantWebhookDto,
+  UpdateTenantWebhookDto,
+} from 'src/modules/tenants/dto/webhook.dto';
+import { ApiResponse } from 'src/common/types/api-response.type';
+import { REQUEST } from '@nestjs/core';
+import { Request } from 'express';
 import type { QueryParams, SortOrder } from 'src/common/types';
 
 /**
@@ -58,7 +70,13 @@ import type { QueryParams, SortOrder } from 'src/common/types';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('tenants')
 export class TenantController {
-  constructor(private readonly tenantService: TenantsService) {}
+  private readonly logger = new Logger(TenantController.name);
+
+  constructor(
+    private readonly tenantService: TenantsService,
+    private readonly tenantWebhooksService: TenantWebhooksService,
+    @Inject(REQUEST) private readonly request: Request,
+  ) {}
 
   /**
    * Crear un nuevo tenant
@@ -346,5 +364,151 @@ export class TenantController {
       pagination,
     );
     return res.status(response.statusCode).json(response);
+  }
+
+  /**
+   * Crea un nuevo webhook para un tenant
+   * POST /tenants/:tenantId/webhooks
+   */
+  @Post(':tenantId/webhooks')
+  @HttpCode(HttpStatus.CREATED)
+  @Permissions('tenants.webhooks.create')
+  @ApiOperation({
+    summary: 'Crear webhook para tenant',
+    description: 'Crea un nuevo webhook que notificará eventos de transacciones',
+  })
+  @ApiCreatedResponse({
+    description: 'Webhook creado exitosamente',
+  })
+  async createWebhook(
+    @Param('tenantId') tenantId: string,
+    @Body() dto: CreateTenantWebhookDto,
+    @CurrentActor() actor: Actor,
+  ): Promise<ApiResponse<any>> {
+    const requestId = (this.request as any).id;
+    const webhook = await this.tenantWebhooksService.createWebhook(tenantId, dto, requestId);
+
+    return ApiResponse.ok(
+      HttpStatus.CREATED,
+      webhook,
+      'Webhook creado exitosamente',
+      { requestId },
+    );
+  }
+
+  /**
+   * Lista webhooks de un tenant
+   * GET /tenants/:tenantId/webhooks
+   */
+  @Get(':tenantId/webhooks')
+  @HttpCode(HttpStatus.OK)
+  @Permissions('tenants.webhooks.read')
+  @ApiOperation({
+    summary: 'Listar webhooks del tenant',
+  })
+  @ApiOkResponse({
+    description: 'Webhooks listados exitosamente',
+  })
+  async listWebhooks(
+    @Param('tenantId') tenantId: string,
+    @CurrentActor() actor: Actor,
+  ): Promise<ApiResponse<any[]>> {
+    const requestId = (this.request as any).id;
+    const webhooks = await this.tenantWebhooksService.listWebhooks(tenantId, requestId);
+
+    return ApiResponse.ok(
+      HttpStatus.OK,
+      webhooks,
+      'Webhooks listados exitosamente',
+      { requestId },
+    );
+  }
+
+  /**
+   * Obtiene un webhook específico
+   * GET /tenants/:tenantId/webhooks/:webhookId
+   */
+  @Get(':tenantId/webhooks/:webhookId')
+  @HttpCode(HttpStatus.OK)
+  @Permissions('tenants.webhooks.read')
+  @ApiOperation({
+    summary: 'Obtener webhook específico',
+  })
+  @ApiOkResponse({
+    description: 'Webhook obtenido exitosamente',
+  })
+  async getWebhook(
+    @Param('tenantId') tenantId: string,
+    @Param('webhookId') webhookId: string,
+    @CurrentActor() actor: Actor,
+  ): Promise<ApiResponse<any>> {
+    const requestId = (this.request as any).id;
+    const webhook = await this.tenantWebhooksService.getWebhook(tenantId, webhookId, requestId);
+
+    return ApiResponse.ok(
+      HttpStatus.OK,
+      webhook,
+      'Webhook obtenido exitosamente',
+      { requestId },
+    );
+  }
+
+  /**
+   * Actualiza un webhook
+   * PUT /tenants/:tenantId/webhooks/:webhookId
+   */
+  @Put(':tenantId/webhooks/:webhookId')
+  @HttpCode(HttpStatus.OK)
+  @Permissions('tenants.webhooks.update')
+  @ApiOperation({
+    summary: 'Actualizar webhook',
+    description:
+      'Actualiza un webhook. Para regenerar el secret, enviar secret: "__REGENERATE__"',
+  })
+  @ApiOkResponse({
+    description: 'Webhook actualizado exitosamente',
+  })
+  async updateWebhook(
+    @Param('tenantId') tenantId: string,
+    @Param('webhookId') webhookId: string,
+    @Body() dto: UpdateTenantWebhookDto,
+    @CurrentActor() actor: Actor,
+  ): Promise<ApiResponse<any>> {
+    const requestId = (this.request as any).id;
+    const webhook = await this.tenantWebhooksService.updateWebhook(
+      tenantId,
+      webhookId,
+      dto,
+      requestId,
+    );
+
+    return ApiResponse.ok(
+      HttpStatus.OK,
+      webhook,
+      'Webhook actualizado exitosamente',
+      { requestId },
+    );
+  }
+
+  /**
+   * Elimina un webhook
+   * DELETE /tenants/:tenantId/webhooks/:webhookId
+   */
+  @Delete(':tenantId/webhooks/:webhookId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Permissions('tenants.webhooks.delete')
+  @ApiOperation({
+    summary: 'Eliminar webhook',
+  })
+  @ApiOkResponse({
+    description: 'Webhook eliminado exitosamente',
+  })
+  async deleteWebhook(
+    @Param('tenantId') tenantId: string,
+    @Param('webhookId') webhookId: string,
+    @CurrentActor() actor: Actor,
+  ): Promise<void> {
+    const requestId = (this.request as any).id;
+    await this.tenantWebhooksService.deleteWebhook(tenantId, webhookId, requestId);
   }
 }
