@@ -1,6 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { AbstractSchema } from '../../../common/schemas/abstract.schema';
+
+import { HydratedDocument } from 'mongoose';
+
+import { AbstractSchema } from 'src/common/schemas/abstract.schema';
+
 import { TransactionStatus } from '../../domain/entities/transaction.entity';
+
+export type TransactionDocument = HydratedDocument<TransactionSchema>;
 
 /**
  * Schema: Transacción de pago

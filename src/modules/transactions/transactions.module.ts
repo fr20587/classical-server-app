@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 
 // Common
+import { AuditModule } from '../audit/audit.module';
 import { CryptoModule } from '../../common/crypto/crypto.module';
 import { HttpModule } from '../../common/http/http.module';
 
@@ -10,25 +11,25 @@ import { HttpModule } from '../../common/http/http.module';
 import { TransactionSchemaFactory } from './infrastructure/schemas/transaction.schema';
 import { TransactionSequenceSchema } from './infrastructure/schemas/transaction-sequence.schema';
 import { MongoDbSequenceAdapter } from './infrastructure/adapters/sequence.adapter';
-import { MongoDbTransactionsRepository } from './infrastructure/adapters/mongodb-transactions.repository';
+import { TransactionsRepository } from './infrastructure/adapters/transactions.repository';
 import { TransactionsController } from './infrastructure/controllers/transactions.controller';
 import { TransactionExpirationTask } from './infrastructure/tasks/transaction-expiration.task';
 
 // Application
+import { AsyncContextService } from 'src/common/context';
 import { TransactionService } from './application/services/transaction.service';
 import { TransactionQueryService } from './application/services/transaction-query.service';
 import { TenantWebhookDispatcher } from './application/services/tenant-webhook.dispatcher';
 
 // Ports
-import { ISequencePort } from './domain/ports/sequence.port';
-import { ITransactionsRepository } from './domain/ports/transactions.repository';
 import { Tenant, TenantSchema } from '../tenants/infrastructure/schemas/tenant.schema';
 
 @Module({
     imports: [
+        AuditModule,
         MongooseModule.forFeature([
             {
-                name: 'Transaction',
+                name: 'TransactionSchema',
                 schema: TransactionSchemaFactory,
                 collection: 'transactions',
             },
@@ -49,9 +50,12 @@ import { Tenant, TenantSchema } from '../tenants/infrastructure/schemas/tenant.s
     ],
     controllers: [TransactionsController],
     providers: [
+
+        AsyncContextService,
+
         // Adapters
         MongoDbSequenceAdapter,
-        MongoDbTransactionsRepository,
+        TransactionsRepository,
         
         // Services
         TransactionService,

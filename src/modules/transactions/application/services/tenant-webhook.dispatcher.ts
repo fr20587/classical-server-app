@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { HttpService } from '../../../common/http/http.service';
-import { CryptoService } from '../../../common/crypto/crypto.service';
+import { InjectModel } from '@nestjs/mongoose';
+
+import { Model } from 'mongoose';
+
+import { HttpService } from '../../../../common/http/http.service';
+import { CryptoService } from '../../../../common/crypto/crypto.service';
+
 import {
   TransactionCreatedEvent,
   TransactionConfirmedEvent,
@@ -9,9 +14,7 @@ import {
   TransactionExpiredEvent,
   TransactionCancelledEvent,
 } from '../../domain/events/transaction.events';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Tenant } from '../../../modules/tenants/infrastructure/schemas/tenant.schema';
+import { Tenant } from 'src/modules/tenants/infrastructure/schemas/tenant.schema';
 
 /**
  * Servicio que despacha webhooks cuando ocurren eventos de transacción

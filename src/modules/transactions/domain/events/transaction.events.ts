@@ -1,4 +1,4 @@
-import { BaseDomainEvent } from '../../../common/events/base-domain.event';
+import { BaseDomainEvent } from "src/common/events/base-domain.event";
 
 export class TransactionCreatedEvent extends BaseDomainEvent {
   constructor(

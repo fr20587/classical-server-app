@@ -4,6 +4,7 @@
  */
 export interface Actor {
   actorId: string; // subject (usuario/service)
+  tenantId?: string; // ID del tenant asociado al usuario
   actorType?: 'user' | 'service'; // tipo de actor
   aud?: string | string[];
   ipAddress?: string; // IP del cliente

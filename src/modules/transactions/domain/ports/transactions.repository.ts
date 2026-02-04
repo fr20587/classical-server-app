@@ -1,3 +1,4 @@
+import { QueryFilter } from 'mongoose';
 import { Transaction } from '../entities/transaction.entity';
 
 /**
@@ -25,7 +26,12 @@ export interface ITransactionsRepository {
    */
   findByTenantId(
     tenantId: string,
-    query?: { status?: string; skip?: number; take?: number },
+    filter: QueryFilter<Transaction>,
+    options: {
+      skip: number;
+      limit: number;
+      sort?: Record<string, number>;
+    },
   ): Promise<{ data: Transaction[]; total: number }>;
 
   /**
@@ -33,21 +39,25 @@ export interface ITransactionsRepository {
    */
   findByCustomerId(
     customerId: string,
-    query?: { status?: string; skip?: number; take?: number },
+    filter: QueryFilter<Transaction>,
+    options: {
+      skip: number;
+      limit: number;
+      sort?: Record<string, number>;
+    },
   ): Promise<{ data: Transaction[]; total: number }>;
 
   /**
    * Lista todas las transacciones con filtros opcionales
    */
-  findAll(filters?: {
-    tenantId?: string;
-    customerId?: string;
-    status?: string;
-    dateFrom?: Date;
-    dateTo?: Date;
-    skip?: number;
-    take?: number;
-  }): Promise<{ data: Transaction[]; total: number }>;
+  findAll(
+    filter: QueryFilter<Transaction>,
+    options: {
+      skip: number;
+      limit: number;
+      sort?: Record<string, number>;
+    },
+  ): Promise<{ data: Transaction[]; total: number }>;
 
   /**
    * Actualiza el estado de una transacción

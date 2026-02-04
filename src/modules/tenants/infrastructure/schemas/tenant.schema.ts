@@ -146,16 +146,17 @@ export class Tenant extends AbstractSchema {
     required: false,
   })
   notes?: string;
-
+  
   /**
    * Webhooks configurados para este tenant
    * Array de configuraciones de webhook con URLs, events, y secrets
    */
   @Prop({
+    required: false,
     type: [Object],
     default: [],
   })
-  webhooks: WebhookConfig[];
+  webhooks?: WebhookConfig[];
 
   maskedPan?: string;
   unmaskPan?: string;

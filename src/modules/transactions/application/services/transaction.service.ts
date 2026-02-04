@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, HttpStatus } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { Transaction, TransactionStatus } from '../../domain/entities/transaction.entity';
@@ -11,10 +11,12 @@ import {
   TransactionExpiredEvent,
 } from '../../domain/events/transaction.events';
 import { CreateTransactionDto, ConfirmTransactionDto, CreateTransactionResponseDto } from '../../dto/transactions.dto';
-import { MongoDbTransactionsRepository } from '../../infrastructure/adapters/mongodb-transactions.repository';
+import { TransactionsRepository } from '../../infrastructure/adapters/transactions.repository';
 import { MongoDbSequenceAdapter } from '../../infrastructure/adapters/sequence.adapter';
 import { CryptoService } from 'src/common/crypto/crypto.service';
 import { AuditService } from 'src/modules/audit/application/audit.service';
+import { ApiResponse } from 'src/common/types';
+import { AsyncContextService } from 'src/common/context';
 
 /**
  * Servicio de aplicación para transacciones
@@ -25,18 +27,22 @@ export class TransactionService {
   private readonly logger = new Logger(TransactionService.name);
 
   constructor(
-    private readonly sequencePort: MongoDbSequenceAdapter,
-    private readonly transactionsRepository: MongoDbTransactionsRepository,
-    private readonly cryptoService: CryptoService,
+    private readonly asyncContextService: AsyncContextService,
     private readonly auditService: AuditService,
+    private readonly cryptoService: CryptoService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+    private readonly sequencePort: MongoDbSequenceAdapter,
+    private readonly transactionsRepository: TransactionsRepository,
+  ) { }
 
   /**
    * Crea una nueva transacción
    * Genera ID, número secuencial, calcula expiración y firma HMAC del QR
    */
-  async create(dto: CreateTransactionDto, requestId: string): Promise<CreateTransactionResponseDto> {
+  async create(dto: CreateTransactionDto): Promise<ApiResponse<CreateTransactionResponseDto>> {
+    // ⭐ OBTENER del contexto en lugar de generar
+    const requestId = this.asyncContextService.getRequestId();
+
     this.logger.log(`[${requestId}] Creando transacción para tenant=${dto.tenantId}`);
 
     try {
@@ -80,9 +86,13 @@ export class TransactionService {
 
       // Auditar
       this.auditService.logAllow('TRANSACTION_CREATED', 'transaction', created.id, {
-        requestId,
-        userId: dto.customerId,
+        module: 'transactions',
+        severity: 'MEDIUM',
         tags: ['transactions'],
+        actorId: dto.customerId,
+        changes: {
+          after: { ...created },
+        },
       });
 
       // Emitir evento de dominio
@@ -100,31 +110,45 @@ export class TransactionService {
       );
 
       // Retornar DTO de respuesta sin el secret completo
-      return {
-        id: created.id,
-        ref: created.ref,
-        no: created.no,
-        amount: created.amount,
-        expiresAt: created.expiresAt,
-        payload: qrPayload,
-        signature: transaction.signature,
-      };
+      return ApiResponse.ok<CreateTransactionResponseDto>(
+        HttpStatus.CREATED,
+        {
+          id: created.id,
+          ref: created.ref,
+          no: created.no,
+          amount: created.amount,
+          expiresAt: created.expiresAt,
+          payload: qrPayload,
+          signature: transaction.signature,
+        },
+        'Transacción creada exitosamente',
+        { requestId }
+      );
     } catch (error) {
-      this.logger.error(`[${requestId}] Error creando transacción: ${error.message}`);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[${requestId}] Failed to create tenant: ${errorMsg}`,
+        error,
+      );
 
-      this.auditService.logDeny(
+      this.auditService.logError(
         'TRANSACTION_CREATE',
         'transaction',
         'unknown',
-        error.message,
+        error instanceof Error ? error : new Error(String(error)),
         {
-          requestId,
-          userId: dto.customerId,
-          tags: ['transactions'],
+          module: 'transactions',
+          severity: 'HIGH',
+          tags: ['tenant', 'creation', 'error'],
+          actorId: dto.customerId,
         },
       );
 
-      throw error;
+      return ApiResponse.fail<CreateTransactionResponseDto>(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Error interno del servidor',
+        'Error desconocido',
+      );
     }
   }
 
@@ -133,15 +157,18 @@ export class TransactionService {
    * Transiciona de 'new' a 'processing'
    */
   async confirm(
-    transactionId: string,
     dto: ConfirmTransactionDto,
-    requestId: string,
-  ): Promise<Transaction> {
-    this.logger.log(`[${requestId}] Confirmando transacción ${transactionId}`);
+  ): Promise<ApiResponse<Transaction>> {
+
+    // ⭐ OBTENER del contexto en lugar de generar
+    const requestId = this.asyncContextService.getRequestId();
+    const userId = this.asyncContextService.getActorId()!;
+
+    this.logger.log(`[${requestId}] Confirmando transacción ${dto.transactionId}`);
 
     try {
       // Buscar transacción
-      const transaction = await this.transactionsRepository.findById(transactionId);
+      const transaction = await this.transactionsRepository.findById(dto.transactionId);
       if (!transaction) {
         throw new NotFoundException('Transacción no encontrada');
       }
@@ -165,7 +192,7 @@ export class TransactionService {
 
       // Persistir cambios
       const updated = await this.transactionsRepository.updateStatus(
-        transactionId,
+        dto.transactionId,
         TransactionStatus.PROCESSING,
         { cardId: dto.cardId },
       );
@@ -175,33 +202,59 @@ export class TransactionService {
       }
 
       // Auditar
-      this.auditService.logAllow('TRANSACTION_CONFIRMED', 'transaction', transactionId, {
-        requestId,
-        userId: transaction.customerId,
-        tags: ['transactions'],
+      this.auditService.logAllow('TRANSACTION_CONFIRMED', 'transaction', dto.transactionId, {
+        module: 'transactions',
+        severity: 'MEDIUM',
+        tags: ['transactions', 'confirmation', 'success'],
+        actorId: userId,
+        changes: {
+          before: { ...transaction },
+          after: { ...updated },
+        },
       });
 
       // Emitir evento
       this.eventEmitter.emit(
         'transaction.confirmed',
         new TransactionConfirmedEvent(
-          transactionId,
+          dto.transactionId,
           transaction.tenantId,
           transaction.customerId,
           dto.cardId,
         ),
       );
 
-      return updated;
+      return ApiResponse.ok<Transaction>(
+        HttpStatus.ACCEPTED,
+        updated,
+        'Transacción confirmada exitosamente',
+        { requestId }
+      );
     } catch (error) {
-      this.logger.error(`[${requestId}] Error confirmando transacción: ${error.message}`);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[${requestId}] Failed to confirm transaction: ${errorMsg}`,
+        error,
+      );
 
-      this.auditService.logDeny('TRANSACTION_CONFIRM', 'transaction', transactionId, error.message, {
-        requestId,
-        tags: ['transactions'],
-      });
+      this.auditService.logError(
+        'TRANSACTION_CONFIRMED',
+        'transaction',
+        'unknown',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          module: 'transactions',
+          severity: 'HIGH',
+          tags: ['transactions', 'confirmation', 'error'],
+          actorId: userId,
+        },
+      );
 
-      throw error;
+      return ApiResponse.fail<Transaction>(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Error interno del servidor',
+        'Error desconocido',
+      );
     }
   }
 
@@ -209,7 +262,11 @@ export class TransactionService {
    * Cancela una transacción
    * Solo se puede cancelar desde estado 'new' o 'processing'
    */
-  async cancel(transactionId: string, requestId: string): Promise<Transaction> {
+  async cancel(transactionId: string): Promise<ApiResponse<Transaction>> {
+    // ⭐ OBTENER del contexto en lugar de generar
+    const requestId = this.asyncContextService.getRequestId();
+    const userId = this.asyncContextService.getActorId()!;
+
     this.logger.log(`[${requestId}] Cancelando transacción ${transactionId}`);
 
     try {
@@ -238,9 +295,14 @@ export class TransactionService {
 
       // Auditar
       this.auditService.logAllow('TRANSACTION_CANCELLED', 'transaction', transactionId, {
-        requestId,
-        userId: transaction.customerId,
-        tags: ['transactions'],
+        module: 'transactions',
+        severity: 'MEDIUM',
+        tags: ['transactions', 'cancellation', 'success'],
+        actorId: userId,
+        changes: {
+          before: { ...transaction },
+          after: { ...updated },
+        },
       });
 
       // Emitir evento
@@ -249,16 +311,37 @@ export class TransactionService {
         new TransactionCancelledEvent(transactionId, transaction.tenantId),
       );
 
-      return updated;
+      return ApiResponse.ok<Transaction>(
+        HttpStatus.ACCEPTED,
+        updated,
+        'Transacción cancelada exitosamente',
+        { requestId }
+      );
     } catch (error) {
-      this.logger.error(`[${requestId}] Error cancelando transacción: ${error.message}`);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[${requestId}] Failed to cancel transaction: ${errorMsg}`,
+        error,
+      );
 
-      this.auditService.logDeny('TRANSACTION_CANCEL', 'transaction', transactionId, error.message, {
-        requestId,
-        tags: ['transactions'],
-      });
+      this.auditService.logError(
+        'TRANSACTION_CANCELLED',
+        'transaction',
+        'unknown',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          module: 'transactions',
+          severity: 'HIGH',
+          tags: ['transactions', 'cancellation', 'error'],
+          actorId: userId,
+        },
+      );
 
-      throw error;
+      return ApiResponse.fail<Transaction>(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Error interno del servidor',
+        'Error desconocido',
+      );
     }
   }
 

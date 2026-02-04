@@ -1,35 +1,59 @@
-import { IsString, IsNumber, IsOptional, Max, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, Max, Min, IsUUID } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transaction } from '../domain/entities/transaction.entity';
 
 /**
  * DTO para crear una transacción
  * Cliente envía: tenantId, customerId, ref (su número de orden), amount, ttlMinutes
  */
 export class CreateTransactionDto {
-  @IsString()
+  @ApiProperty({
+    description: 'ID del tenant (arrendatario) que realiza la transacción',
+    example: 'tenant_123',
+  })
+  @IsString({ message: 'tenantId debe ser una cadena de texto' })
   tenantId: string;
 
-  @IsString()
+  @ApiProperty({
+    description: 'ID del cliente propietario de la transacción',
+    example: 'customer_456',
+  })
+  @IsString({ message: 'customerId debe ser una cadena de texto' })
   customerId: string;
 
   /**
    * Referencia del cliente (número de orden)
    */
-  @IsString()
+  @ApiProperty({
+    description: 'Referencia del cliente (número de orden)',
+    example: 'ORD-2025-0001',
+  })
+  @IsString({ message: 'ref debe ser una cadena de texto (referencia del cliente)' })
   ref: string;
 
   /**
    * Monto en centavos
    */
-  @IsNumber()
-  @Min(1)
+  @ApiProperty({
+    description: 'Monto en centavos (entero, mínimo 1)',
+    example: 1500,
+  })
+  @IsNumber({}, { message: 'amount debe ser un número' })
+  @Min(1, { message: 'amount debe ser como mínimo 1 (centavo)' })
   amount: number;
 
   /**
    * Tiempo de vida en minutos (máximo 1440 = 24 horas)
    */
-  @IsNumber()
-  @Min(1)
-  @Max(1440)
+  @ApiPropertyOptional({
+    description: 'Tiempo de vida de la transacción en minutos (máximo 1440 = 24 horas)',
+    example: 60,
+    default: 60,
+  })
+  @IsOptional()
+  @IsNumber({}, { message: 'ttlMinutes debe ser un número (minutos)' })
+  @Min(1, { message: 'ttlMinutes debe ser al menos 1 minuto' })
+  @Max(1440, { message: 'ttlMinutes no puede exceder 1440 minutos (24 horas)' })
   ttlMinutes?: number;
 }
 
@@ -38,14 +62,29 @@ export class CreateTransactionDto {
  * Cliente envía: cardId, firma del QR para validar integridad
  */
 export class ConfirmTransactionDto {
-  @IsString()
+  @ApiProperty({
+    description: 'ID de la transacción (UUID v4)',
+    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+  })
+  @IsUUID('4', { message: 'transactionId debe ser un UUID versión 4 válido' })
+  transactionId: string;
+
+  @ApiProperty({
+    description: 'ID de la tarjeta que confirma la transacción',
+    example: 'card_789',
+  })
+  @IsUUID('4', { message: 'cardId debe ser un UUID versión 4 válido' })
   cardId: string;
 
   /**
    * Firma HMAC-SHA256 del payload del QR
    * Cliente recibe esto en la respuesta de creación
    */
-  @IsString()
+  @ApiProperty({
+    description: 'Firma HMAC-SHA256 del payload del QR (debe coincidir con la enviada en creación)',
+    example: 'a1b2c3d4e5f6...',
+  })
+  @IsString({ message: 'signature debe ser una cadena (firma HMAC-SHA256)' })
   signature: string;
 }
 
@@ -55,54 +94,92 @@ export class ConfirmTransactionDto {
  */
 export class CancelTransactionDto {}
 
-/**
- * DTO para filtrar lista de transacciones
- * Admin puede filtrar por status, dateFrom, dateTo, etc.
- */
-export class ListTransactionsQueryDto {
-  @IsOptional()
-  @IsString()
-  tenantId?: string;
-
-  @IsOptional()
-  @IsString()
-  customerId?: string;
-
-  @IsOptional()
-  @IsString()
-  status?: string;
-
-  @IsOptional()
-  dateFrom?: string; // ISO string o timestamp
-
-  @IsOptional()
-  dateTo?: string; // ISO string o timestamp
-
-  @IsOptional()
-  @IsNumber()
-  skip?: number;
-
-  @IsOptional()
-  @IsNumber()
-  take?: number;
-}
 
 /**
  * DTO para respuesta al crear transacción
  * Cliente recibe los datos del QR con la firma
  */
 export class CreateTransactionResponseDto {
+  @ApiProperty({
+    description: 'ID de la transacción creada',
+    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+  })
   id: string;
+
+  @ApiProperty({
+    description: 'Referencia del cliente (número de orden) enviada originalmente',
+    example: 'ORD-2025-0001',
+  })
   ref: string;
+
+  @ApiProperty({
+    description: 'Número interno de transacción',
+    example: 1024,
+  })
   no: number;
+
+  @ApiProperty({
+    description: 'Monto en centavos',
+    example: 1500,
+  })
   amount: number;
+
+  @ApiProperty({
+    description: 'Fecha y hora de expiración de la transacción en formato ISO',
+    example: new Date().toISOString(),
+    type: String,
+    format: 'date-time',
+  })
   expiresAt: Date;
+
   /**
    * Payload del QR en JSON para que cliente lo escanee
    */
+  @ApiProperty({
+    description: 'Payload JSON codificado en el QR que el cliente debe escanear',
+    type: Object,
+    example: { transactionId: '3fa85f64-5717-4562-b3fc-2c963f66afa6', amount: 1500 },
+  })
   payload: Record<string, any>;
+
   /**
    * Firma HMAC-SHA256 del payload, cliente debe devolverla en confirmación
    */
+  @ApiProperty({
+    description: 'Firma HMAC-SHA256 del payload del QR (debe devolverse en la confirmación)',
+    example: 'a1b2c3d4e5f6...',
+  })
   signature: string;
+}
+
+
+/**
+ * DTO para respuesta paginada de transactions
+ */
+export class TransactionPaginatedResponseDto {
+  @ApiProperty({
+    description: 'Array de transactions',
+    type: [Transaction],
+  })
+  data: Transaction[];
+
+  @ApiProperty({
+    description: 'Metadatos de paginación',
+    example: {
+      page: 1,
+      limit: 10,
+      total: 50,
+      totalPages: 5,
+      hasNextPage: true,
+      hasPreviousPage: false,
+    },
+  })
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
 }

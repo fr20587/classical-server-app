@@ -140,6 +140,7 @@ export class TenantsService {
         HttpStatus.CREATED,
         responseDto,
         'Tenant creado exitosamente',
+        { requestId }
       );
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -437,6 +438,7 @@ export class TenantsService {
         HttpStatus.OK,
         responseDto,
         'Tenant actualizado',
+        { requestId }
       );
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

@@ -25,8 +25,8 @@ export class MongoDbSequenceAdapter implements ISequencePort {
    */
   async getNextTransactionNo(): Promise<number> {
     try {
-      const result = await this.sequenceModel.findByIdAndUpdate(
-        'transaction_no',
+      const result = await this.sequenceModel.findOneAndUpdate(
+        { collectionName: 'transactions' },
         { $inc: { nextNo: 1 } },
         {
           new: true,

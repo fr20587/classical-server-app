@@ -52,7 +52,7 @@
 
 - `TransactionSchema`: extiende AbstractSchema, campos: ref (unique), no, tenantId, customerId, amount, status, cardId, ttlMinutes, expiresAt, signature, stateSnapshot
 - Índices: tenantId, customerId, ref, status, expiresAt, createdAt
-- `MongoDbTransactionsRepository`: implementa ITransactionsRepository
+- `TransactionsRepository`: implementa ITransactionsRepository
 
 ### 8. Crear dispatcher de webhooks en `src/modules/transactions/application/`
 

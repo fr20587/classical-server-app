@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { TransactionService } from '../services/transaction.service';
+import { TransactionService } from '../../application/services/transaction.service';
 
 /**
  * Tarea scheduled que ejecuta cada minuto

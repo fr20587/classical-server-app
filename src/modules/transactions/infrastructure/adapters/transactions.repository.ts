@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, QueryFilter } from 'mongoose';
 import { Transaction } from '../../domain/entities/transaction.entity';
 import { ITransactionsRepository } from '../../domain/ports/transactions.repository';
 import { TransactionSchema } from '../schemas/transaction.schema';
@@ -10,13 +10,13 @@ import { TransactionStatus } from '../../domain/entities/transaction.entity';
  * Adapter: Implementación de repositorio de transacciones con MongoDB
  */
 @Injectable()
-export class MongoDbTransactionsRepository implements ITransactionsRepository {
-  private readonly logger = new Logger(MongoDbTransactionsRepository.name);
+export class TransactionsRepository implements ITransactionsRepository {
+  private readonly logger = new Logger(TransactionsRepository.name);
 
   constructor(
     @InjectModel(TransactionSchema.name)
     private readonly transactionModel: Model<TransactionSchema>,
-  ) {}
+  ) { }
 
   async create(transaction: Transaction): Promise<Transaction> {
     try {
@@ -40,9 +40,9 @@ export class MongoDbTransactionsRepository implements ITransactionsRepository {
     }
   }
 
-  async findByRef(ref: string, tenantId: string): Promise<Transaction | null> {
+  async findByRef(ref: string, transactionId: string): Promise<Transaction | null> {
     try {
-      const document = await this.transactionModel.findOne({ ref, tenantId });
+      const document = await this.transactionModel.findOne({ ref, transactionId });
       return document ? this.mapToDomain(document) : null;
     } catch (error) {
       this.logger.error(`Error buscando transacción por ref: ${error.message}`);
@@ -52,48 +52,60 @@ export class MongoDbTransactionsRepository implements ITransactionsRepository {
 
   async findByTenantId(
     tenantId: string,
-    query?: { status?: string; skip?: number; take?: number },
+    filter: QueryFilter<Transaction>,
+    options: {
+      skip: number;
+      limit: number;
+      sort?: Record<string, number>;
+    },
   ): Promise<{ data: Transaction[]; total: number }> {
     try {
-      const filter: Record<string, any> = { tenantId };
-      if (query?.status) filter.status = query.status;
 
-      const skip = query?.skip ?? 0;
-      const take = query?.take ?? 20;
-
-      const [documents, total] = await Promise.all([
-        this.transactionModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(take).exec(),
-        this.transactionModel.countDocuments(filter),
+      const [transactions, total] = await Promise.all([
+        this.transactionModel
+          .find({ tenantId, ...filter } as any)
+          .sort((options.sort || { createdAt: -1 }) as any)
+          .skip(options.skip)
+          .limit(options.limit)
+          .lean()
+          .exec(),
+        this.transactionModel.countDocuments({ tenantId, ...filter } as any).exec(),
       ]);
 
       return {
-        data: documents.map((doc) => this.mapToDomain(doc)),
+        data: transactions.map((doc) => this.mapToDomain(doc)),
         total,
       };
     } catch (error) {
-      this.logger.error(`Error listando transacciones del tenant: ${error.message}`);
+      this.logger.error(`Error listando transacciones del transaction: ${error.message}`);
       throw error;
     }
   }
 
   async findByCustomerId(
     customerId: string,
-    query?: { status?: string; skip?: number; take?: number },
+    filter: QueryFilter<Transaction>,
+    options: {
+      skip: number;
+      limit: number;
+      sort?: Record<string, number>;
+    },
   ): Promise<{ data: Transaction[]; total: number }> {
     try {
-      const filter: Record<string, any> = { customerId };
-      if (query?.status) filter.status = query.status;
 
-      const skip = query?.skip ?? 0;
-      const take = query?.take ?? 20;
-
-      const [documents, total] = await Promise.all([
-        this.transactionModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(take).exec(),
-        this.transactionModel.countDocuments(filter),
+      const [transactions, total] = await Promise.all([
+        this.transactionModel
+          .find({ customerId, ...filter } as any)
+          .sort((options.sort || { createdAt: -1 }) as any)
+          .skip(options.skip)
+          .limit(options.limit)
+          .lean()
+          .exec(),
+        this.transactionModel.countDocuments({ customerId, ...filter } as any).exec(),
       ]);
 
       return {
-        data: documents.map((doc) => this.mapToDomain(doc)),
+        data: transactions.map((doc) => this.mapToDomain(doc)),
         total,
       };
     } catch (error) {
@@ -102,44 +114,47 @@ export class MongoDbTransactionsRepository implements ITransactionsRepository {
     }
   }
 
-  async findAll(filters?: {
-    tenantId?: string;
-    customerId?: string;
-    status?: string;
-    dateFrom?: Date;
-    dateTo?: Date;
-    skip?: number;
-    take?: number;
-  }): Promise<{ data: Transaction[]; total: number }> {
+  async findAll(
+    filter: QueryFilter<Transaction>,
+    options: {
+      skip: number;
+      limit: number;
+      sort?: Record<string, number>;
+    },
+  ): Promise<{ data: Transaction[]; total: number }> {
     try {
-      const filter: Record<string, any> = {};
+      this.logger.debug(
+        `Finding Transactions with filter: ${JSON.stringify(filter)}, skip=${options.skip}, limit=${options.limit}`,
+      );
 
-      if (filters?.tenantId) filter.tenantId = filters.tenantId;
-      if (filters?.customerId) filter.customerId = filters.customerId;
-      if (filters?.status) filter.status = filters.status;
-
-      // Filtro de rango de fechas
-      if (filters?.dateFrom || filters?.dateTo) {
-        filter.createdAt = {};
-        if (filters.dateFrom) filter.createdAt.$gte = filters.dateFrom;
-        if (filters.dateTo) filter.createdAt.$lte = filters.dateTo;
-      }
-
-      const skip = filters?.skip ?? 0;
-      const take = filters?.take ?? 20;
-
-      const [documents, total] = await Promise.all([
-        this.transactionModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(take).exec(),
-        this.transactionModel.countDocuments(filter),
+      // Ejecutar query en paralelo: obtener documentos y contar total
+      const [transactions, total] = await Promise.all([
+        this.transactionModel
+          .find(filter as any)
+          .sort((options.sort || { createdAt: -1 }) as any)
+          .skip(options.skip)
+          .limit(options.limit)
+          .lean()
+          .exec(),
+        this.transactionModel.countDocuments(filter as any).exec(),
       ]);
 
+      this.logger.debug(
+        `Found ${transactions.length} Transactions (total: ${total}, skip: ${options.skip}, limit: ${options.limit})`,
+      );
+
       return {
-        data: documents.map((doc) => this.mapToDomain(doc)),
+        data: transactions as unknown as Transaction[],
         total,
       };
     } catch (error) {
-      this.logger.error(`Error listando transacciones: ${error.message}`);
-      throw error;
+      this.logger.error(
+        `Error finding Transactions with filter: ${error instanceof Error ? error.message : String(error)}`,
+        error,
+      );
+      throw new Error(
+        `Find with filter failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
