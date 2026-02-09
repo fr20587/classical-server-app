@@ -36,25 +36,21 @@ export class TenantOAuth2CredentialsService {
 
     /**
      * Regenera solo el clientSecret de un tenant y retorna las credenciales actualizadas
-     * @param tenantId ID del tenant
      * @returns Objeto con clientId e id (el nuevo secret)
      */
-    async regenerateSecret(tenantId: string): Promise<ApiResponse<OAuth2ClientCredentials>> {
+    async regenerateSecret(): Promise<ApiResponse<OAuth2ClientCredentials>> {
         const requestId = this.asyncContextService.getRequestId();
-        const userId = this.asyncContextService.getActorId();
-        this.logger.log(
-            `[${requestId}] Regenerating OAuth2 secret for tenant ${tenantId}`,
-        );
+        const userId = this.asyncContextService.getActorId()!;
 
         try {
 
-            const tenant = await this.tenantsRepository.findById(tenantId);
+            const tenant = await this.tenantsRepository.findByUserId(userId);
 
             if (!tenant) {
-                const errorMsg = `Tenant not found: ${tenantId}`;
+                const errorMsg = `Tenant no encontrado para el usuario: ${userId}`;
                 this.logger.warn(`[${requestId}] ${errorMsg}`);
                 // Registrar acceso denegado
-                this.auditService.logDeny('TENANT_FETCHED', 'tenant', tenantId, errorMsg, {
+                this.auditService.logDeny('TENANT_FETCHED', 'tenant', userId, errorMsg, {
                     severity: 'LOW',
                     tags: ['tenant', 'read', 'not-found'],
                 });
@@ -62,35 +58,41 @@ export class TenantOAuth2CredentialsService {
                     HttpStatus.NOT_FOUND,
                     errorMsg,
                     'Tenant no encontrado',
-                    { requestId, tenantId, userId },
+                    { requestId, userId },
                 );
             }
 
+            this.logger.log(
+                `[${requestId}] Regenerating OAuth2 secret for tenant ${tenant.id}`,
+            );
+
             // Generar nuevo secret
-            const newClientId = uuidv4().replace(/-/g, '');
             const newSecret = uuidv4().replace(/-/g, '');
 
             // Actualizar tenant con nuevo secret
             await this.tenantsRepository.updateOAuth2Credentials(
-                tenantId,
-                newClientId,
+                tenant.id,
+                tenant.oauth2ClientCredentials!.clientId,
                 newSecret,
             );
 
             this.logger.log(
-                `[${requestId}] OAuth2 secret regenerated for tenant ${tenantId}`,
+                `[${requestId}] OAuth2 secret regenerated for tenant ${tenant.id}`,
             );
 
             return ApiResponse.ok<OAuth2ClientCredentials>(
                 HttpStatus.ACCEPTED,
-                { clientId: newClientId, clientSecret: newSecret },
+                {
+                    clientId: tenant.oauth2ClientCredentials!.clientId,
+                    clientSecret: newSecret
+                },
                 'Credenciales OAuth2 regeneradas exitosamente',
-                { requestId, tenantId, userId },
+                { requestId, tenantId: tenant.id, userId },
             );
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             this.logger.error(
-                `[${requestId}] Error regenerating OAuth2 secret for tenant ${tenantId}: ${errorMsg}`,
+                `[${requestId}] Error regenerating OAuth2 secret for tenant of user: ${userId}: ${errorMsg}`,
                 error,
             );
 
@@ -111,7 +113,7 @@ export class TenantOAuth2CredentialsService {
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 'Error interno del servidor',
                 'Error desconocido',
-                { requestId, tenantId, userId },
+                { requestId, userId },
             );
         }
     }

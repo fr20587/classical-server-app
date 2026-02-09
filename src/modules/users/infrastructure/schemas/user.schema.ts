@@ -8,11 +8,16 @@ import { AbstractSchema } from 'src/common/schemas/abstract.schema';
 
 import { UserStatus } from '../../domain/enums';
 import { Role } from 'src/modules/roles/domain';
+import { Tenant } from 'src/modules/tenants/infrastructure/schemas/tenant.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true, collection: 'users' })
 export class User extends AbstractSchema {
+
+  @Prop({ type: String, required: false, ref: 'Tenant' })
+  tenantId?: string;
+
   @Prop({ type: String, trim: true })
   email?: string;
 
@@ -70,6 +75,8 @@ export class User extends AbstractSchema {
   lastActive?: Date;
 
   role?: Role;
+
+  tenant?: Tenant;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
@@ -77,6 +84,7 @@ export const UserSchema = SchemaFactory.createForClass(User);
 // Índices adicionales
 UserSchema.index({ status: 1 });
 UserSchema.index({ roleId: 1 });
+UserSchema.index({ tenantId: 1 });
 UserSchema.index({ phone: 1 }, { unique: true });
 UserSchema.index({ email: 1 }, { sparse: true });
 UserSchema.index({ createdAt: -1 });
@@ -87,6 +95,13 @@ UserSchema.virtual('role', {
   ref: 'Role',
   localField: 'roleKey',
   foreignField: 'key',
+  justOne: true,
+});
+
+UserSchema.virtual('tenant', {
+  ref: 'Tenant',
+  localField: 'tenantId',
+  foreignField: 'id',
   justOne: true,
 });
 

@@ -541,4 +541,16 @@ export const SYSTEM_PERMISSIONS = [
     resource: MODULES.EXTERNAL_SERVICE,
     action: ACTIONS.ROTATE,
   },
+  {
+    key: `${MODULES.API_CREDENTIALS}.${ACTIONS.READ}`,
+    description: 'Ver credenciales de API y webhooks',
+    resource: MODULES.API_CREDENTIALS,
+    action: ACTIONS.READ,
+  },
+  {
+    key: `${MODULES.API_CREDENTIALS}.${ACTIONS.UPDATE}`,
+    description: 'Actualizar credenciales de API y webhooks',
+    resource: MODULES.API_CREDENTIALS,
+    action: ACTIONS.UPDATE,
+  },
 ];

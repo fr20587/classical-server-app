@@ -19,6 +19,7 @@ import {
 } from './infrastructure/schemas/tenant-lifecycle.schema';
 import { AsyncContextService } from 'src/common/context';
 import { TenantOAuth2CredentialsService } from './application/services/tenant-oauth2-credentials.service';
+import { UsersModule } from '../users/users.module';
 
 /**
  * TenantsModule - Módulo NestJS para gestión de tenants (negocios)
@@ -46,6 +47,7 @@ import { TenantOAuth2CredentialsService } from './application/services/tenant-oa
         schema: TenantLifecycleSchema,
       },
     ]),
+    UsersModule,
   ],
   providers: [
     AsyncContextService,

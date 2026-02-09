@@ -148,10 +148,27 @@ export class NavigationService {
   ): NavigationItem[] {
     this.logger.debug(
       `Building navigation items for user with ${userPermissions.length} permissions`,
+      { userPermissions },
     );
 
     // 1. Filtrar: solo módulos activos
     const navigableModules = modules.filter((m) => m.status === 'active');
+    
+    this.logger.debug(
+      `Navigable modules (active): ${navigableModules.length}`,
+      {
+        modules: navigableModules.map((m) => ({
+          id: m.id,
+          indicator: m.indicator,
+          name: m.name,
+          parent: m.parent,
+          permissions: m.permissions?.map((p) => ({
+            indicator: p.indicator,
+            enabled: p.enabled,
+          })),
+        })),
+      },
+    );
 
     // 2. Separar módulos: con parent vs sin parent
     const modulesWithParent = navigableModules.filter((m) => m.parent);
@@ -177,7 +194,17 @@ export class NavigationService {
       );
 
       const groupChildren = childModules
-        .filter((m) => this.userHasModulePermission(userPermissions, m))
+        .filter((m) => {
+          const hasPermission = this.userHasModulePermission(userPermissions, m);
+          this.logger.debug(`Module ${m.indicator} (${m.name}): ${hasPermission ? 'ALLOWED' : 'DENIED'}`, {
+            modulePermissions: m.permissions?.map((p) => ({
+              indicator: p.indicator,
+              enabled: p.enabled,
+            })),
+            userPermissions,
+          });
+          return hasPermission;
+        })
         .map((m) => this.mapModuleToNavigationItem(m))
         .sort((a, b) => a.order - b.order);
 
@@ -201,11 +228,18 @@ export class NavigationService {
     // 4. Procesar módulos sin parent: items básicos en top-level
     // Excluir módulos que ya fueron procesados como padres de grupo
     for (const module of modulesWithoutParent) {
-      if (
-        !processedParentIndicators.has(module.indicator) &&
-        this.userHasModulePermission(userPermissions, module)
-      ) {
-        navigationItems.push(this.mapModuleToNavigationItem(module));
+      if (!processedParentIndicators.has(module.indicator)) {
+        const hasPermission = this.userHasModulePermission(userPermissions, module);
+        this.logger.debug(`Top-level module ${module.indicator} (${module.name}): ${hasPermission ? 'ALLOWED' : 'DENIED'}`, {
+          modulePermissions: module.permissions?.map((p) => ({
+            indicator: p.indicator,
+            enabled: p.enabled,
+          })),
+          userPermissions,
+        });
+        if (hasPermission) {
+          navigationItems.push(this.mapModuleToNavigationItem(module));
+        }
       }
     }
 

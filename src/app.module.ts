@@ -12,6 +12,7 @@ import dotenv from 'dotenv';
 // Shared Modules
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BootstrapModule } from './common/bootstrap/bootstrap.module';
 import { CardsModule } from './modules/cards/cards.module';
 import { ModulesModule } from './modules/modules';
 import { SharedContextModule } from './shared/shared-context.module';
@@ -51,6 +52,9 @@ import { RolesModule } from './modules/roles/roles.module';
 
     // ⭐ SharedContextModule: Importar PRIMERO para que ClsService esté disponible globalmente
     SharedContextModule,
+
+    // ⭐ BootstrapModule: Inicializar datos del sistema en PHASE segunda para que estén disponibles
+    BootstrapModule,
 
     // Modules
     AuditModule,

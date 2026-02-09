@@ -7,3 +7,6 @@ export {
   TenantLifecycleEventResponseDto,
   TenantLifecyclePaginatedResponseDto,
 } from './tenant-lifecycle-response.dto';
+export * from './tenant-credentials.dto';
+export * from './webhook.dto';
+export * from './oauth2-credentials.dto';

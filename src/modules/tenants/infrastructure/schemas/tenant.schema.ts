@@ -51,6 +51,30 @@ export class Tenant extends AbstractSchema {
   businessAddress: Address;
 
   /**
+   * Identificador tributario del tenant
+   */
+  @Prop({
+    type: String,
+    required: true,
+    unique: true,
+    length: 11, 
+    match: /^[0-9]{11}$/, // solo números
+  })
+  nit: string;
+  
+  /**
+   * Código MCC del negocio (Merchant Category Code)
+   * Opcional, pero recomendado para clasificación de negocios
+   */
+  @Prop({
+    type: String,
+    required: false,
+    maxlength: 4,
+    match: /^[0-9]{4}$/, // solo números, exactamente 4 dígitos
+  })
+  mcc?: string;
+
+  /**
    * Referencia a la clave en Vault donde se almacena el PAN
    * Formato: tenants/{tenantId}/pan
    */

@@ -9,6 +9,7 @@ import { ModuleEntity, Permission } from '../domain/module.entity';
  * Los permisos están pre-generados con estructura completa
  */
 
+
 /**
  * Helper para generar un permiso
  */
@@ -29,6 +30,36 @@ function createPermission(
     requiresSuperAdmin,
   };
 }
+
+const API_CREDENTIALS_MODULE = new ModuleEntity({
+  order: 5,
+  parent: 'system',
+  indicator: 'api-credentials',
+  name: 'API Credentials',
+  description:
+    'Gestión de credenciales de API (OAuth2) y configuración de webhooks para integración.',
+  icon: 'key',
+  actions: ['read', 'update'],
+  permissions: createPermissionsFromActions('api-credentials', 'API Credentials', [
+    {
+      action: 'read',
+      id: 'apic_r',
+      name: 'Ver Credenciales',
+      description: 'Visualizar las credenciales OAuth2 y secretos de webhook del tenant.',
+      enabled: true,
+    },
+    {
+      action: 'update',
+      id: 'apic_u',
+      name: 'Actualizar Credenciales',
+      description: 'Modificar la configuración del webhook y regenerar secretos.',
+      enabled: true,
+    },
+  ]),
+  status: 'active',
+  isSystem: true,
+  type: ModuleType.basic,
+});
 
 /**
  * Helper para generar múltiples permisos a partir de acciones
@@ -96,7 +127,7 @@ const MY_TENANT_MODULE = new ModuleEntity({
   name: 'My Tenant',
   description:
     'Gestión de datos del propio negocio/organización (tenant) del usuario autenticado.',
-  icon: 'store',
+  icon: 'business_center',
   actions: ['read', 'update'],
   permissions: createPermissionsFromActions('my-tenant', 'My Tenant', [
     {
@@ -736,6 +767,7 @@ export const SYSTEM_MODULES: ModuleEntity[] = [
   ROLES_MODULE,
   USERS_MODULE,
   TENANTS_MODULE,
+  API_CREDENTIALS_MODULE,
   // DOCUMENTATION_MODULE,
   // PERMISSIONS_MODULE,
   // SUPPORT_MODULE,

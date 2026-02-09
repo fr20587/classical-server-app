@@ -19,6 +19,8 @@ import {
   TransitionTenantStateDto,
   TenantLifecyclePaginatedResponseDto,
   TenantLifecycleEventResponseDto,
+  TenantCredentialsResponseDto,
+  UpdateTenantCredentialsDto,
 } from '../dto';
 
 import { isValidStateTransition } from '../domain/tenant.state-machine';
@@ -31,6 +33,7 @@ import { TenantLifecycleEvent } from '../domain/interfaces/lifecycle-event.inter
 import { TenantStatus } from '../domain/enums';
 import { TenantOAuth2CredentialsService } from './services/tenant-oauth2-credentials.service';
 import { TenantWebhooksService } from './services/tenant-webhooks.service';
+import { MongoDbUsersRepository } from 'src/modules/users/infrastructure/adapters';
 
 /**
  * Servicio de aplicación para tenants
@@ -49,7 +52,8 @@ export class TenantsService {
     private readonly tenantsRepository: TenantsRepository,
     private readonly vaultService: TenantVaultService,
     private readonly webhooksService: TenantWebhooksService,
-  ) {}
+    private readonly usersRepository: MongoDbUsersRepository,
+  ) { }
 
   /**
    * Crear un nuevo tenant
@@ -109,6 +113,8 @@ export class TenantsService {
         panVaultKeyId,
         email: dto.email.toLowerCase(),
         phone: dto.phone,
+        nit: dto.nit,
+        mcc: dto.mcc,
         status: TenantStatus.PENDING_REVIEW,
         userId,
         notes: dto.notes,
@@ -145,6 +151,9 @@ export class TenantsService {
 
       // Retornar respuesta
       const responseDto = this.mapTenantToResponse(newTenant, undefined);
+
+      // Agregar tenantId al usuario (si no tiene uno asignado)
+      await this.usersRepository.addTenantIdToUser(userId, tenantId);
 
       return ApiResponse.ok<Tenant>(
         HttpStatus.CREATED,
@@ -256,6 +265,89 @@ export class TenantsService {
         errorMsg,
         'Error al obtener tenant',
         { requestId, id },
+      );
+    }
+  }
+
+  /**
+   * Obtener un tenant por usuario
+   */
+  async getTenantByUser(): Promise<ApiResponse<Tenant>> {
+    const requestId = this.asyncContextService.getRequestId();
+    const userId = this.asyncContextService.getActorId()!;
+
+    this.logger.debug(`[${requestId}] Fetching tenant by user: ${userId}`);
+    try {
+
+      const tenant = await this.tenantsRepository.findByUserId(userId);
+
+      if (!tenant) {
+        const errorMsg = `Tenant no encontrado para el usuario: ${userId}`;
+        this.logger.warn(`[${requestId}] ${errorMsg}`);
+        // Registrar acceso denegado
+        this.auditService.logDeny('TENANT_FETCHED', 'tenant', userId, errorMsg, {
+          severity: 'LOW',
+          tags: ['tenant', 'read', 'not-found'],
+        });
+        return ApiResponse.fail<Tenant>(
+          HttpStatus.NOT_FOUND,
+          errorMsg,
+          'Tenant no encontrado',
+          { requestId, userId },
+        );
+      }
+
+
+      // Registrar lectura exitosa
+      this.auditService.logAllow('TENANT_FETCHED', 'tenant', userId, {
+        module: 'tenants',
+        severity: 'LOW',
+        tags: ['tenant', 'read', 'successful'],
+        actorId: userId,
+      });
+
+      // Determinar si puede ver PAN desenmascarado
+      const actor = this.asyncContextService.getActor();
+      const canViewUnmasked = this.canViewSensitiveData(actor);
+      let unmaskPan: string | undefined;
+
+      if (canViewUnmasked) {
+        const panResult = await this.vaultService.getPan(tenant.id);
+        if (panResult.isSuccess) {
+          unmaskPan = panResult.getValue();
+        }
+      }
+
+      const responseDto = this.mapTenantToResponse(tenant, unmaskPan);
+
+      return ApiResponse.ok<Tenant>(HttpStatus.OK, responseDto, undefined, {
+        requestId,
+        userId,
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const userId = this.asyncContextService.getActorId();
+      this.logger.error(
+        `[${requestId}] Failed to fetch tenant: ${errorMsg}`,
+        error,
+      );
+      // Registrar error
+      this.auditService.logError(
+        'TENANT_FETCHED',
+        'tenant',
+        userId || 'unknown',
+        error instanceof Error ? error : new Error(errorMsg),
+        {
+          severity: 'MEDIUM',
+          tags: ['tenant', 'read', 'error'],
+          actorId: userId || 'unknown',
+        },
+      );
+      return ApiResponse.fail<Tenant>(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        errorMsg,
+        'Error al obtener tenant',
+        { requestId, userId, },
       );
     }
   }
@@ -478,6 +570,141 @@ export class TenantsService {
   }
 
   /**
+   * Obtener credenciales (OAuth2 y Webhook) del tenant del usuario actual
+   */
+  async getTenantCredentialsByUser(): Promise<ApiResponse<TenantCredentialsResponseDto>> {
+    const requestId = this.asyncContextService.getRequestId();
+    const userId = this.asyncContextService.getActorId()!;
+
+    this.logger.debug(`[${requestId}] Fetching credentials for user: ${userId}`);
+
+    try {
+      const tenant = await this.tenantsRepository.findByUserId(userId);
+
+      if (!tenant) {
+        return ApiResponse.fail<TenantCredentialsResponseDto>(
+          HttpStatus.NOT_FOUND,
+          'Tenant no encontrado para el usuario',
+          'El usuario no tiene un tenant asociado',
+          { requestId, userId }
+        );
+      }
+
+      // Mapear credenciales
+      const credentials: TenantCredentialsResponseDto = {
+        oauth2: {
+          clientId: tenant.oauth2ClientCredentials?.clientId || '',
+          clientSecret: tenant.oauth2ClientCredentials?.clientSecret || '',
+        },
+        webhook: {
+          id: tenant.webhook?.id || '',
+          url: tenant.webhook?.url || null,
+          events: tenant.webhook?.events || [],
+          secret: tenant.webhook?.secret || '',
+        },
+      };
+
+      return ApiResponse.ok<TenantCredentialsResponseDto>(
+        HttpStatus.OK,
+        credentials,
+        'Credenciales obtenidas con éxito',
+        { requestId }
+      );
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[${requestId}] Failed to fetch credentials: ${errorMsg}`, error);
+      return ApiResponse.fail<TenantCredentialsResponseDto>(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        errorMsg,
+        'Error al obtener credenciales',
+        { requestId }
+      );
+    }
+  }
+
+  /**
+   * Actualizar credenciales (principalmente el webhook) del tenant del usuario actual
+   */
+  async updateTenantCredentialsByUser(
+    dto: UpdateTenantCredentialsDto,
+  ): Promise<ApiResponse<TenantCredentialsResponseDto>> {
+    const requestId = this.asyncContextService.getRequestId();
+    const userId = this.asyncContextService.getActorId()!;
+
+    this.logger.log(`[${requestId}] Updating credentials for user: ${userId}`);
+
+    try {
+      const tenant = await this.tenantsRepository.findByUserId(userId);
+
+      if (!tenant) {
+        return ApiResponse.fail<TenantCredentialsResponseDto>(
+          HttpStatus.NOT_FOUND,
+          'Tenant no encontrado para el usuario',
+          'El usuario no tiene un tenant asociado',
+          { requestId, userId }
+        );
+      }
+
+      // Preparar actualización del webhook
+      const webhookUpdate: any = { ...tenant.webhook };
+      if (dto.webhookUrl !== undefined) webhookUpdate.url = dto.webhookUrl;
+      if (dto.webhookEvents !== undefined) webhookUpdate.events = dto.webhookEvents;
+
+      // Actualizar en el repositorio
+      const updatedTenant = await this.tenantsRepository.update(tenant.id, {
+        webhook: webhookUpdate,
+      });
+
+      const credentials: TenantCredentialsResponseDto = {
+        oauth2: {
+          clientId: updatedTenant.oauth2ClientCredentials?.clientId || '',
+          clientSecret: updatedTenant.oauth2ClientCredentials?.clientSecret || '',
+        },
+        webhook: {
+          id: updatedTenant.webhook?.id || '',
+          url: updatedTenant.webhook?.url || null,
+          events: updatedTenant.webhook?.events || [],
+          secret: updatedTenant.webhook?.secret || '',
+        },
+      };
+
+      // Registrar auditoría
+      this.auditService.logAllow('TENANT_CREDENTIALS_UPDATED', 'tenant', tenant.id, {
+        module: 'tenants',
+        severity: 'MEDIUM',
+        tags: ['tenant', 'credentials', 'update'],
+        actorId: userId,
+        changes: {
+          before: {
+            webhookUrl: tenant.webhook?.url,
+            webhookEvents: tenant.webhook?.events,
+          },
+          after: {
+            webhookUrl: dto.webhookUrl,
+            webhookEvents: dto.webhookEvents,
+          },
+        },
+      });
+
+      return ApiResponse.ok<TenantCredentialsResponseDto>(
+        HttpStatus.OK,
+        credentials,
+        'Credenciales actualizadas exitosamente',
+        { requestId }
+      );
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[${requestId}] Failed to update credentials: ${errorMsg}`, error);
+      return ApiResponse.fail<TenantCredentialsResponseDto>(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        errorMsg,
+        'Error al actualizar credenciales',
+        { requestId }
+      );
+    }
+  }
+
+  /**
    * Cambiar el estado de un tenant (transición de máquina de estados)
    */
   async transitionTenantState(
@@ -619,6 +846,8 @@ export class TenantsService {
       unmaskPan: unmaskPan || undefined,
       email: tenant.email,
       phone: tenant.phone,
+      nit: tenant.nit,
+      mcc: tenant.mcc,
       status: tenant.status as TenantStatus,
       userId: tenant.userId,
       notes: tenant.notes,

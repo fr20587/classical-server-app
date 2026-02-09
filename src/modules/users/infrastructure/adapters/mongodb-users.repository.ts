@@ -203,6 +203,21 @@ export class MongoDbUsersRepository implements IUsersRepository {
   }
 
   /**
+   * Agregar tenantId al usuario (cuando se asigna un tenant).
+   * Esto se llama desde TenantService cuando se crea un tenant y se asigna al usuario.
+   */
+  async addTenantIdToUser(userId: string, tenantId: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findOneAndUpdate(
+        { id: userId, status: UserStatus.ACTIVE },
+        { $set: { tenantId } },
+        { new: true },
+      )
+      .populate(this.populateOptions())
+      .exec();
+  }
+
+  /**
    * Deshabilitar usuario (soft delete).
    */
   async disable(id: string): Promise<boolean> {

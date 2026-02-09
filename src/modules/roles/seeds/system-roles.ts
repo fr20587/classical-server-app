@@ -242,8 +242,9 @@ export const SYSTEM_ROLES = [
     permissionKeys: [
       // Public / help
       `${MODULES.CHANGELOG}.read`,
-      `${MODULES.DOCUMENTATION}.read`,
-      `${MODULES.SUPPORT}.read`,
+      // TODO: uncomment when DOCUMENTATION and SUPPORT modules are defined
+      // `${MODULES.DOCUMENTATION}.read`,
+      // `${MODULES.SUPPORT}.read`,
       `${MODULES.CONTACT}.read`,
       `${MODULES.DASHBOARD}.read`,
 
@@ -252,39 +253,55 @@ export const SYSTEM_ROLES = [
       `${MODULES.MY_TENANT}.update`,
 
       // Gestión del comercio (propio)
-      `${MODULES.MERCHANTS}.create`,
       `${MODULES.MERCHANTS}.view`,
-      `${MODULES.MERCHANTS}.edit`,
-      `${MODULES.MERCHANTS}.delete`,
 
       // Terminales del comercio
-      `${MODULES.TERMINALS}.create`,
       `${MODULES.TERMINALS}.view`,
-      `${MODULES.TERMINALS}.create`,
-      `${MODULES.TERMINALS}.export`,
       `${MODULES.TERMINALS}.webhooks`,
       `${MODULES.TERMINALS}.logs`,
 
       // Usuarios del comercio
-      `${MODULES.USERS}.create`,
-      `${MODULES.USERS}.read`,
-      `${MODULES.USERS}.update`,
-      `${MODULES.USERS}.delete`,
+      `${MODULES.USERS}.view`,
 
       // Transacciones del comercio
       `${MODULES.TRANSACTIONS}.create`,
-      `${MODULES.TRANSACTIONS}.read`,
+      `${MODULES.TRANSACTIONS}.view`,
       `${MODULES.TRANSACTIONS}.export`,
 
       // Tarjetas / clientes
-      `${MODULES.CARDS}.read`,
+      `${MODULES.CARDS}.view`,
       `${MODULES.CARDS}.create`,
-      `${MODULES.CARDS}.update`,
+      `${MODULES.CARDS}.edit`,
       `${MODULES.CARDS}.delete`,
+    ],
+    status: 'active',
+    isSystem: true,
+  },
 
-      // Integraciones externas necesarias
-      `${MODULES.EXTERNAL_SERVICE}.export`,
-      `${MODULES.EXTERNAL_SERVICE}.rotate`,
+  /**
+   * Developer - Rol para programadores externos/internos
+   * Acceso a: API Credentials (read), Transactions (read)
+   */
+  {
+    key: 'developer',
+    name: 'Desarrollador',
+    description:
+      'Rol para programadores que necesitan integrarse, con acceso a credenciales de API y consulta de transacciones.',
+    permissionKeys: [
+      // API Credentials (propio del usuario/tenant)
+      `${MODULES.API_CREDENTIALS}.read`,
+
+      // Transactions
+      `${MODULES.TRANSACTIONS}.read`,
+
+      // Dashboard
+      `${MODULES.DASHBOARD}.read`,
+
+      // Módulos públicos / Ayuda
+      `${MODULES.CHANGELOG}.read`,
+      `${MODULES.DOCUMENTATION}.read`,
+      `${MODULES.SUPPORT}.read`,
+      `${MODULES.CONTACT}.read`,
     ],
     status: 'active',
     isSystem: true,

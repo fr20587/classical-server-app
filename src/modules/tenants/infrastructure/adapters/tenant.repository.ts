@@ -47,6 +47,21 @@ export class TenantsRepository implements ITenantPort {
   }
 
   /**
+   * Buscar un tenant por userId
+   */
+  async findByUserId(userId: string): Promise<Tenant | null> {
+    try {
+      const tenant = await this.tenantModel
+        .findOne({ userId })
+        .lean();
+      return tenant as Tenant | null;
+    } catch (error) {
+      this.logger.error(`Error finding tenant by userId: ${userId}`, error);
+      return null;
+    }
+  }
+
+  /**
    * Listar tenants con filtros y paginación
    */
   async findAll(

@@ -53,6 +53,7 @@ export const MODULES = {
   MODULES: 'modules',
   SERVICES: 'services',
   EXTERNAL_SERVICE: 'external_service',
+  API_CREDENTIALS: 'api-credentials',
 } as const;
 
 /**
