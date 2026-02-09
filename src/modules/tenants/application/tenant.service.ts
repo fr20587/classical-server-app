@@ -149,8 +149,9 @@ export class TenantsService {
 
       await this.lifecycleRepository.create(lifecycleEvent);
 
-      // Retornar respuesta
-      const responseDto = this.mapTenantToResponse(newTenant, undefined);
+      // Enriquecer tenant con datos del Vault
+      const vaultData = await this.enrichTenantWithVaultData(newTenant);
+      const responseDto = this.mapTenantToResponse(newTenant, vaultData);
 
       // Agregar tenantId al usuario (si no tiene uno asignado)
       await this.usersRepository.addTenantIdToUser(userId, tenantId);
@@ -223,19 +224,9 @@ export class TenantsService {
         actorId: userId,
       });
 
-      // Determinar si puede ver PAN desenmascarado
-      const actor = this.asyncContextService.getActor();
-      const canViewUnmasked = this.canViewSensitiveData(actor);
-      let unmaskPan: string | undefined;
-
-      if (canViewUnmasked) {
-        const panResult = await this.vaultService.getPan(id);
-        if (panResult.isSuccess) {
-          unmaskPan = panResult.getValue();
-        }
-      }
-
-      const responseDto = this.mapTenantToResponse(tenant, unmaskPan);
+      // Enriquecer tenant con datos del Vault
+      const vaultData = await this.enrichTenantWithVaultData(tenant);
+      const responseDto = this.mapTenantToResponse(tenant, vaultData);
 
       return ApiResponse.ok<Tenant>(HttpStatus.OK, responseDto, undefined, {
         requestId,
@@ -306,19 +297,13 @@ export class TenantsService {
         actorId: userId,
       });
 
-      // Determinar si puede ver PAN desenmascarado
-      const actor = this.asyncContextService.getActor();
-      const canViewUnmasked = this.canViewSensitiveData(actor);
-      let unmaskPan: string | undefined;
+      // Enriquecer tenant con datos del Vault
+      const panResult = await this.vaultService.getPan(tenant.id);
 
-      if (canViewUnmasked) {
-        const panResult = await this.vaultService.getPan(tenant.id);
-        if (panResult.isSuccess) {
-          unmaskPan = panResult.getValue();
-        }
-      }
-
-      const responseDto = this.mapTenantToResponse(tenant, unmaskPan);
+      const maskedPan = this.vaultService.maskPan(panResult.getValue());
+      const unmaskPan = panResult.getValue();
+      
+      const responseDto = this.mapTenantToResponse(tenant, { maskedPan, unmaskPan });
 
       return ApiResponse.ok<Tenant>(HttpStatus.OK, responseDto, undefined, {
         requestId,
@@ -534,7 +519,9 @@ export class TenantsService {
         timestamp: new Date(),
       });
 
-      const responseDto = this.mapTenantToResponse(updated, undefined);
+      // Enriquecer tenant con datos del Vault
+      const vaultData = await this.enrichTenantWithVaultData(updated);
+      const responseDto = this.mapTenantToResponse(updated, vaultData);
 
       return ApiResponse.ok<Tenant>(
         HttpStatus.OK,
@@ -768,7 +755,9 @@ export class TenantsService {
         timestamp: new Date(),
       });
 
-      const responseDto = this.mapTenantToResponse(updated, undefined);
+      // Enriquecer tenant con datos del Vault
+      const vaultData = await this.enrichTenantWithVaultData(updated);
+      const responseDto = this.mapTenantToResponse(updated, vaultData);
 
       return ApiResponse.ok<Tenant>(
         HttpStatus.OK,
@@ -826,11 +815,69 @@ export class TenantsService {
   }
 
   /**
+   * Enriquecer tenant con datos sensibles del Vault (maskedPan y unmaskPan)
+   * Obtiene el PAN del Vault si el usuario tiene permisos
+   */
+  private async enrichTenantWithVaultData(
+    tenant: Tenant,
+  ): Promise<{ maskedPan: string; unmaskPan?: string }> {
+    try {
+      const actor = this.asyncContextService.getActor();
+      const canViewUnmasked = this.canViewSensitiveData(actor);
+      let unmaskPan: string | undefined;
+
+      this.logger.log(
+        `[enrichTenantWithVaultData] tenant.id=${tenant.id}, panVaultKeyId=${tenant.panVaultKeyId}, canViewUnmasked=${canViewUnmasked}`,
+      );
+
+      if (canViewUnmasked && tenant.panVaultKeyId) {
+        this.logger.log(`[enrichTenantWithVaultData] Attempting to retrieve PAN from Vault for tenant: ${tenant.id}`);
+        const panResult = await this.vaultService.getPan(tenant.id);
+
+        if (panResult.isSuccess) {
+          unmaskPan = panResult.getValue();
+          this.logger.log(`[enrichTenantWithVaultData] Successfully retrieved PAN from Vault (last4: ${unmaskPan?.slice(-4)})`);
+        } else {
+          const error = panResult.getError();
+          this.logger.warn(
+            `[enrichTenantWithVaultData] Failed to retrieve PAN from Vault: ${error?.message || String(error)}`,
+          );
+        }
+      } else {
+        this.logger.log(
+          `[enrichTenantWithVaultData] Skipping PAN retrieval - canViewUnmasked=${canViewUnmasked}, hasPanVaultKeyId=${!!tenant.panVaultKeyId}`,
+        );
+      }
+
+      // Usar PAN si se obtuvo, de lo contrario usar valor vacío para enmascarar
+      const maskedPan = unmaskPan
+        ? this.vaultService.maskPan(unmaskPan)
+        : '**** **** **** ****';
+
+      return {
+        maskedPan,
+        unmaskPan: unmaskPan || undefined,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Failed to enrich tenant ${tenant.id} with vault data: ${error instanceof Error ? error.message : String(error)}`,
+        error,
+      );
+      // En caso de error, retornar solo el PAN enmascarado
+      return {
+        maskedPan: '**** **** **** ****',
+        unmaskPan: undefined,
+      };
+    }
+  }
+
+  /**
    * Mapear entidad de tenant a DTO de respuesta
    */
-  private mapTenantToResponse(tenant: any, unmaskPan?: string): Tenant {
-    const maskedPan = this.vaultService.maskPan(unmaskPan || 'unknown');
-
+  private mapTenantToResponse(
+    tenant: any,
+    vaultData: { maskedPan: string; unmaskPan?: string },
+  ): Tenant {
     return {
       id: tenant.id,
       businessName: tenant.businessName,
@@ -842,8 +889,8 @@ export class TenantsService {
         zipCode: tenant.businessAddress.zipCode,
         country: tenant.businessAddress.country,
       },
-      maskedPan,
-      unmaskPan: unmaskPan || undefined,
+      maskedPan: vaultData.maskedPan,
+      unmaskPan: vaultData.unmaskPan,
       email: tenant.email,
       phone: tenant.phone,
       nit: tenant.nit,
@@ -882,14 +929,19 @@ export class TenantsService {
    */
   private canViewSensitiveData(actor?: Actor): boolean {
     if (!actor) {
+      this.logger.log('[canViewSensitiveData] No actor available');
       return false;
     }
 
     // Verificar si tiene el permiso tenants.view-sensitive
     const allowedScopes = ['tenants.view-sensitive'];
-    return (
-      actor.scopes?.some((scope) => allowedScopes.includes(scope)) || false
+    const hasPermission = actor.scopes?.some((scope) => allowedScopes.includes(scope)) || false;
+
+    this.logger.log(
+      `[canViewSensitiveData] actor.scopes=${JSON.stringify(actor.scopes)}, hasPermission=${hasPermission}`,
     );
+
+    return hasPermission;
   }
 
   /**

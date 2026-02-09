@@ -65,20 +65,20 @@ export class TenantVaultService {
       const vaultKeyId = `tenants/${tenantId}/pan`;
 
       const readResult = await this.vaultClient.readKV(vaultKeyId);
-
+      
       if (!readResult.isSuccess) {
         return Result.fail(readResult.getError());
       }
-
+      
       const vaultData = readResult.getValue();
       const panData = vaultData.data as any;
 
-      if (!panData?.pan) {
+      if (!panData?.data) {
         return Result.fail(new Error('PAN not found in Vault'));
       }
 
       this.logger.debug(`PAN retrieved for tenant: ${tenantId}`);
-      return Result.ok(panData.pan as string);
+      return Result.ok(panData.data.pan as string);
     } catch (error) {
       this.logger.error(`Error retrieving PAN for tenant ${tenantId}:`, error);
       return Result.fail(error as Error);

@@ -72,4 +72,29 @@ export interface IVaultClient {
    * Get the current auth token (cached)
    */
   getToken(): Promise<Result<string, VaultError>>;
+
+  /**
+   * Save a PAN (Primary Account Number) for a tenant in Vault
+   * Handles validation and storage with metadata (last4, savedAt)
+   */
+  savePan(
+    tenantId: string,
+    pan: string,
+  ): Promise<Result<string, VaultError>>;
+
+  /**
+   * Retrieve a PAN for a tenant from Vault (unmasked)
+   * CAUTION: Never expose this to clients. For internal use only.
+   */
+  getPan(tenantId: string): Promise<Result<string, VaultError>>;
+
+  /**
+   * Delete a PAN for a tenant from Vault
+   */
+  deletePan(tenantId: string): Promise<Result<void, VaultError>>;
+
+  /**
+   * Check if a PAN exists for a tenant in Vault
+   */
+  existsPan(tenantId: string): Promise<boolean>;
 }

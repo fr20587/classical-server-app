@@ -324,6 +324,117 @@ export class VaultHttpAdapter implements IVaultClient {
     return new VaultError(500, errMsg, message);
   }
 
+  /**
+   * PAN (Primary Account Number) specific operations
+   */
+
+  /** Guardar un PAN en Vault */
+  async savePan(
+    tenantId: string,
+    pan: string,
+  ): Promise<Result<string, VaultError>> {
+    try {
+      // Limpiar espacios y guiones
+      const cleanPan = pan.replace(/[\s-]/g, '');
+
+      // Validar que sea numérico y tenga longitud válida
+      if (!/^\d{13,19}$/.test(cleanPan)) {
+        const error = new VaultError(
+          400,
+          'Invalid PAN format',
+          'PAN must be 13-19 numeric digits',
+        );
+        this.emitEvent('write', `tenants/${tenantId}/pan`, 'failed', error);
+        return Result.fail(error);
+      }
+
+      const vaultPath = `tenants/${tenantId}/pan`;
+      const writeResult = await this.writeKV(vaultPath, {
+        pan: cleanPan,
+        savedAt: new Date().toISOString(),
+        last4: cleanPan.slice(-4),
+      });
+
+      if (!writeResult.isSuccess) {
+        return Result.fail(writeResult.getError());
+      }
+
+      this.logger.debug(`PAN saved for tenant: ${tenantId}`);
+      return Result.ok(vaultPath);
+    } catch (error) {
+      const vaultError = this.handleError(error, 'write', `tenants/${tenantId}/pan`);
+      this.emitEvent('write', `tenants/${tenantId}/pan`, 'failed', vaultError);
+      return Result.fail(vaultError);
+    }
+  }
+
+  /** Recuperar un PAN del Vault (sin enmascarar) */
+  async getPan(
+    tenantId: string,
+  ): Promise<Result<string, VaultError>> {
+    try {
+      const vaultPath = `tenants/${tenantId}/pan`;
+      const readResult = await this.readKV(vaultPath);
+
+      if (!readResult.isSuccess) {
+        return Result.fail(readResult.getError());
+      }
+
+      const vaultData = readResult.getValue();
+      const panData = vaultData.data as any;
+
+      if (!panData?.pan) {
+        const error = new VaultError(
+          404,
+          'PAN not found',
+          `PAN not found in Vault for tenant: ${tenantId}`,
+        );
+        this.emitEvent('read', vaultPath, 'failed', error);
+        return Result.fail(error);
+      }
+
+      this.logger.debug(`PAN retrieved for tenant: ${tenantId}`);
+      return Result.ok(panData.pan as string);
+    } catch (error) {
+      const vaultError = this.handleError(error, 'read', `tenants/${tenantId}/pan`);
+      this.emitEvent('read', `tenants/${tenantId}/pan`, 'failed', vaultError);
+      return Result.fail(vaultError);
+    }
+  }
+
+  /** Eliminar un PAN del Vault */
+  async deletePan(
+    tenantId: string,
+  ): Promise<Result<void, VaultError>> {
+    try {
+      const vaultPath = `tenants/${tenantId}/pan`;
+      const deleteResult = await this.deleteKV(vaultPath);
+
+      if (!deleteResult.isSuccess) {
+        return Result.fail(deleteResult.getError());
+      }
+
+      this.logger.debug(`PAN deleted for tenant: ${tenantId}`);
+      return Result.ok();
+    } catch (error) {
+      const vaultError = this.handleError(error, 'delete', `tenants/${tenantId}/pan`);
+      this.emitEvent('delete', `tenants/${tenantId}/pan`, 'failed', vaultError);
+      return Result.fail(vaultError);
+    }
+  }
+
+  /** Verificar si un PAN existe en Vault */
+  async existsPan(
+    tenantId: string,
+  ): Promise<boolean> {
+    try {
+      const result = await this.getPan(tenantId);
+      return result.isSuccess;
+    } catch (error) {
+      return false;
+    }
+  }
+
   private emitEvent(
     operation: 'login' | 'read' | 'write' | 'delete' | 'renew' | 'unwrap',
     path: string | undefined,
