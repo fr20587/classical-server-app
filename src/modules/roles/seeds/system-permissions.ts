@@ -256,62 +256,6 @@ export const SYSTEM_PERMISSIONS = [
     action: ACTIONS.EXPORT,
   },
 
-  // ===== TERMINALS =====
-  {
-    key: `${MODULES.TERMINALS}.${ACTIONS.CREATE}`,
-    description: 'Crear terminales',
-    resource: MODULES.TERMINALS,
-    action: ACTIONS.CREATE,
-  },
-  {
-    key: `${MODULES.TERMINALS}.${ACTIONS.READ}`,
-    description: 'Leer metadata de terminales',
-    resource: MODULES.TERMINALS,
-    action: ACTIONS.READ,
-  },
-  {
-    key: `${MODULES.TERMINALS}.${ACTIONS.UPDATE}`,
-    description: 'Actualizar terminales',
-    resource: MODULES.TERMINALS,
-    action: ACTIONS.UPDATE,
-  },
-  {
-    key: `${MODULES.TERMINALS}.${ACTIONS.DELETE}`,
-    description: 'Eliminar terminales',
-    resource: MODULES.TERMINALS,
-    action: ACTIONS.DELETE,
-  },
-  {
-    key: `${MODULES.TERMINALS}.${ACTIONS.EXPORT}`,
-    description: 'Exportar metadata de terminales',
-    resource: MODULES.TERMINALS,
-    action: ACTIONS.EXPORT,
-  },
-  {
-    key: `${MODULES.TERMINALS}.${ACTIONS.ROTATE}`,
-    description: 'Rotar llaves de terminales',
-    resource: MODULES.TERMINALS,
-    action: ACTIONS.ROTATE,
-  },
-  {
-    key: `${MODULES.TERMINALS}.${ACTIONS.REVOKE}`,
-    description: 'Revocar terminales',
-    resource: MODULES.TERMINALS,
-    action: ACTIONS.REVOKE,
-  },
-  {
-    key: `${MODULES.TERMINALS}.${ACTIONS.ENABLE}`,
-    description: 'Habilitar terminales',
-    resource: MODULES.TERMINALS,
-    action: ACTIONS.ENABLE,
-  },
-  {
-    key: `${MODULES.TERMINALS}.${ACTIONS.DISABLE}`,
-    description: 'Deshabilitar terminales',
-    resource: MODULES.TERMINALS,
-    action: ACTIONS.DISABLE,
-  },
-
   // ===== KEYS =====
   {
     key: `${MODULES.KEYS}.${ACTIONS.CREATE}`,
@@ -395,36 +339,36 @@ export const SYSTEM_PERMISSIONS = [
   },
 
   // ===== MERCHANTS =====
-  {
-    key: `${MODULES.MERCHANTS}.${ACTIONS.CREATE}`,
-    description: 'Crear metadata de comercios',
-    resource: MODULES.MERCHANTS,
-    action: ACTIONS.CREATE,
-  },
-  {
-    key: `${MODULES.MERCHANTS}.${ACTIONS.READ}`,
-    description: 'Leer metadata de comercios',
-    resource: MODULES.MERCHANTS,
-    action: ACTIONS.READ,
-  },
-  {
-    key: `${MODULES.MERCHANTS}.${ACTIONS.UPDATE}`,
-    description: 'Actualizar metadata de comercios',
-    resource: MODULES.MERCHANTS,
-    action: ACTIONS.UPDATE,
-  },
-  {
-    key: `${MODULES.MERCHANTS}.${ACTIONS.DELETE}`,
-    description: 'Eliminar metadata de comercios',
-    resource: MODULES.MERCHANTS,
-    action: ACTIONS.DELETE,
-  },
-  {
-    key: `${MODULES.MERCHANTS}.${ACTIONS.EXPORT}`,
-    description: 'Exportar metadata de comercios',
-    resource: MODULES.MERCHANTS,
-    action: ACTIONS.EXPORT,
-  },
+  // {
+  //   key: `${MODULES.MERCHANTS}.${ACTIONS.CREATE}`,
+  //   description: 'Crear metadata de comercios',
+  //   resource: MODULES.MERCHANTS,
+  //   action: ACTIONS.CREATE,
+  // },
+  // {
+  //   key: `${MODULES.MERCHANTS}.${ACTIONS.READ}`,
+  //   description: 'Leer metadata de comercios',
+  //   resource: MODULES.MERCHANTS,
+  //   action: ACTIONS.READ,
+  // },
+  // {
+  //   key: `${MODULES.MERCHANTS}.${ACTIONS.UPDATE}`,
+  //   description: 'Actualizar metadata de comercios',
+  //   resource: MODULES.MERCHANTS,
+  //   action: ACTIONS.UPDATE,
+  // },
+  // {
+  //   key: `${MODULES.MERCHANTS}.${ACTIONS.DELETE}`,
+  //   description: 'Eliminar metadata de comercios',
+  //   resource: MODULES.MERCHANTS,
+  //   action: ACTIONS.DELETE,
+  // },
+  // {
+  //   key: `${MODULES.MERCHANTS}.${ACTIONS.EXPORT}`,
+  //   description: 'Exportar metadata de comercios',
+  //   resource: MODULES.MERCHANTS,
+  //   action: ACTIONS.EXPORT,
+  // },
 
   // ===== TRANSACTIONS =====
   {

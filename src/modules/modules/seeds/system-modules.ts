@@ -31,35 +31,7 @@ function createPermission(
   };
 }
 
-const API_CREDENTIALS_MODULE = new ModuleEntity({
-  order: 5,
-  parent: 'system',
-  indicator: 'api-credentials',
-  name: 'API Credentials',
-  description:
-    'Gestión de credenciales de API (OAuth2) y configuración de webhooks para integración.',
-  icon: 'key',
-  actions: ['read', 'update'],
-  permissions: createPermissionsFromActions('api-credentials', 'API Credentials', [
-    {
-      action: 'read',
-      id: 'apic_r',
-      name: 'Ver Credenciales',
-      description: 'Visualizar las credenciales OAuth2 y secretos de webhook del tenant.',
-      enabled: true,
-    },
-    {
-      action: 'update',
-      id: 'apic_u',
-      name: 'Actualizar Credenciales',
-      description: 'Modificar la configuración del webhook y regenerar secretos.',
-      enabled: true,
-    },
-  ]),
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.basic,
-});
+
 
 /**
  * Helper para generar múltiples permisos a partir de acciones
@@ -89,14 +61,11 @@ function createPermissionsFromActions(
 }
 
 // ============================================================================
-// MÓDULOS PÚBLICOS (Sin autenticación / Solo lectura)
-// ============================================================================
-
-// ============================================================================
-// MÓDULO INICIAL (Dashboard)
+// MÓDULOS PRINCIPALES
 // ============================================================================
 
 const DASHBOARD_MODULE = new ModuleEntity({
+  order: 0,
   indicator: 'dashboard',
   name: 'Dashboard',
   description: 'Panel de inicio con métricas y vista general del sistema.',
@@ -116,10 +85,6 @@ const DASHBOARD_MODULE = new ModuleEntity({
   isSystem: true,
   type: ModuleType.basic,
 });
-
-// ============================================================================
-// MÓDULO DE NEGOCIO PERSONAL (My Tenant)
-// ============================================================================
 
 const MY_TENANT_MODULE = new ModuleEntity({
   order: 1,
@@ -151,229 +116,47 @@ const MY_TENANT_MODULE = new ModuleEntity({
   type: ModuleType.basic,
 });
 
-// ============================================================================
-// MÓDULOS DE NEGOCIO
-// ============================================================================
-
-const MANAGEMENT_MODULE = new ModuleEntity({
+const CARDS_MODULE = new ModuleEntity({
   order: 2,
-  indicator: 'management',
-  name: 'Management',
-  description:
-    'Módulo grupo para gestión de transacciones, comercios y terminales.',
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.group,
-});
-
-const TERMINALS_MODULE = new ModuleEntity({
-  order: 0,
-  parent: 'management',
-  indicator: 'terminals',
-  name: 'Terminals',
-  description:
-    'Gestión de aplicaciones clientes, credenciales OAuth y configuración de webhooks.',
-  icon: 'point_of_sale',
-  actions: ['view', 'create', 'manage-secrets', 'webhooks', 'logs'],
-  permissions: createPermissionsFromActions('terminals', 'Terminals', [
+  indicator: 'cards',
+  name: 'Cards',
+  description: 'Gestión de tarjetas de pago y datos de pago.',
+  icon: 'credit_card',
+  actions: ['view', 'create', 'edit', 'delete', 'export'],
+  permissions: createPermissionsFromActions('cards', 'Cards', [
     {
       action: 'view',
-      id: 'tm_v',
-      name: 'Ver Terminales',
-      description: 'Visualizar las aplicaciones registradas en el hub.',
+      id: 'cd_v',
+      name: 'Ver Tarjetas',
+      description: 'Listar y visualizar detalles de tarjetas (enmascaradas).',
       enabled: true,
     },
     {
       action: 'create',
-      id: 'tm_c',
-      name: 'Registrar Terminal',
-      description: 'Dar de alta nuevas aplicaciones o dispositivos.',
-      enabled: false,
-    },
-    {
-      action: 'manage-secrets',
-      id: 'tm_s',
-      name: 'Rotar Secretos',
-      description: 'Generar nuevos Client Secrets y revocar los antiguos.',
-      enabled: false,
-    },
-    {
-      action: 'webhooks',
-      id: 'tm_w',
-      name: 'Gestionar Webhooks',
-      description: 'Configurar la URL y eventos de notificación del terminal.',
+      id: 'cd_c',
+      name: 'Registrar Tarjetas',
+      description: 'Registrar nuevas tarjetas de pago.',
       enabled: true,
-    },
-    {
-      action: 'logs',
-      id: 'tm_l',
-      name: 'Ver Logs Técnicos',
-      description: 'Acceso a los logs de conexión específicos del terminal.',
-      enabled: true,
-    },
-  ]),
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.basic,
-});
-
-const MERCHANTS_MODULE = new ModuleEntity({
-  order: 1,
-  parent: 'management',
-  indicator: 'merchants',
-  name: 'Merchants',
-  description: 'Gestión de comercios y sus datos.',
-  icon: 'business',
-  actions: ['view', 'create', 'edit', 'delete'],
-  permissions: createPermissionsFromActions('merchants', 'Merchants', [
-    {
-      action: 'view',
-      id: 'is_v',
-      name: 'Ver comercios',
-      description: 'Listar y visualizar detalles de comercios.',
-      enabled: true,
-    },
-    {
-      action: 'create',
-      id: 'is_c',
-      name: 'Crear comercios',
-      description: 'Registrar nuevos comercios en el sistema.',
-      enabled: false,
-      requiresSuperAdmin: true,
     },
     {
       action: 'edit',
-      id: 'is_e',
-      name: 'Editar comercios',
-      description: 'Modificar información de comercios existentes.',
-      enabled: false,
-    },
-    {
-      action: 'delete',
-      id: 'is_d',
-      name: 'Eliminar comercios',
-      description: 'Dar de baja comercios del sistema.',
-      enabled: false,
-      requiresSuperAdmin: true,
-    },
-  ]),
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.basic,
-});
-
-const KEYS_MODULE = new ModuleEntity({
-  order: 3,
-  parent: 'management',
-  indicator: 'keys',
-  name: 'Keys',
-  description: 'Gestión de claves criptográficas.',
-  icon: 'vpn_key',
-  actions: ['view', 'create', 'rotate', 'revoke', 'export'],
-  permissions: createPermissionsFromActions('keys', 'Keys', [
-    {
-      action: 'view',
-      id: 'k_v',
-      name: 'Ver Claves',
-      description: 'Visualizar claves criptográficas y su estado.',
+      id: 'cd_e',
+      name: 'Editar Tarjetas',
+      description: 'Actualizar información de tarjeta (alias, estado).',
       enabled: true,
     },
     {
-      action: 'create',
-      id: 'k_c',
-      name: 'Crear Claves',
-      description: 'Generar nuevas claves maestras o derivadas.',
-      enabled: false,
-    },
-    {
-      action: 'rotate',
-      id: 'k_r',
-      name: 'Rotar Claves',
-      description: 'Renovar claves por expiración o cambio de política.',
-      enabled: false,
-    },
-    {
-      action: 'revoke',
-      id: 'k_rv',
-      name: 'Revocar Claves',
-      description: 'Invalidar claves comprometidas.',
-      enabled: false,
-      requiresSuperAdmin: true,
-    },
-    {
-      action: 'export',
-      id: 'k_e',
-      name: 'Exportar Claves',
-      description: 'Descargar claves en formato encriptado.',
-      enabled: false,
-      requiresSuperAdmin: true,
-    },
-  ]),
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.basic,
-});
-
-// ============================================================================
-// MÓDULOS DEL SISTEMA KMS
-// ============================================================================
-const SYSTEM_MODULE = new ModuleEntity({
-  order: 3,
-  indicator: 'system',
-  name: 'System',
-  description:
-    'Módulo grupo para administración del sistema y configuración de la plataforma.',
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.group,
-});
-
-const ANALYTICS_MODULE = new ModuleEntity({
-  order: 0,
-  parent: 'system',
-  indicator: 'analytics',
-  name: 'Analytics',
-  description:
-    'Métricas de rendimiento, volumen transaccional y tasas de conversión.',
-  icon: 'monitoring',
-  actions: ['view'],
-  permissions: createPermissionsFromActions('analytics', 'Analytics', [
-    {
-      action: 'view',
-      id: 'an_v',
-      name: 'Ver Analíticas',
-      description: 'Acceso a dashboards de rendimiento financiero.',
-      enabled: false,
-      requiresSuperAdmin: true,
-    },
-  ]),
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.basic,
-});
-
-const AUDIT_MODULE = new ModuleEntity({
-  order: 1,
-  parent: 'system',
-  indicator: 'audit',
-  name: 'Audit',
-  description:
-    'Registro de actividad y trazabilidad de cambios en la plataforma.',
-  icon: 'policy',
-  actions: ['view', 'export'],
-  permissions: createPermissionsFromActions('audit', 'Audit', [
-    {
-      action: 'view',
-      id: 'au_v',
-      name: 'Consultar Logs',
-      description: 'Ver quién hizo qué y cuándo en la plataforma.',
+      action: 'delete',
+      id: 'cd_d',
+      name: 'Eliminar Tarjetas',
+      description: 'Remover tarjetas del sistema.',
       enabled: true,
     },
     {
       action: 'export',
-      id: 'au_e',
-      name: 'Exportar Auditoría',
-      description: 'Generar reportes de cumplimiento (compliance).',
+      id: 'cd_e',
+      name: 'Exportar Tarjetas',
+      description: 'Descargar reporte de tarjetas registradas.',
       enabled: false,
     },
   ]),
@@ -381,201 +164,9 @@ const AUDIT_MODULE = new ModuleEntity({
   isSystem: true,
   type: ModuleType.basic,
 });
-
-const MODULES_MODULE = new ModuleEntity({
-  order: 2,
-  parent: 'system',
-  indicator: 'modules',
-  name: 'Modules',
-  description: 'Gestión del catálogo de módulos de la plataforma.',
-  icon: 'dashboard',
-  actions: ['view', 'create', 'update', 'disable'],
-  permissions: createPermissionsFromActions('modules', 'Modules', [
-    {
-      action: 'view',
-      id: 'mod_v',
-      name: 'Ver Módulos',
-      description: 'Listar y visualizar módulos disponibles.',
-      enabled: true,
-    },
-    {
-      action: 'create',
-      id: 'mod_c',
-      name: 'Crear Módulos',
-      description: 'Registrar nuevos módulos en el sistema.',
-      enabled: false,
-      requiresSuperAdmin: true,
-    },
-    {
-      action: 'update',
-      id: 'mod_u',
-      name: 'Actualizar Módulos',
-      description: 'Modificar configuración de módulos existentes.',
-      enabled: false,
-      requiresSuperAdmin: true,
-    },
-    {
-      action: 'disable',
-      id: 'mod_d',
-      name: 'Deshabilitar Módulos',
-      description: 'Desactivar módulos temporalmente.',
-      enabled: false,
-      requiresSuperAdmin: true,
-    },
-  ]),
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.basic,
-});
-
-const ROLES_MODULE = new ModuleEntity({
-  order: 3,
-  parent: 'system',
-  indicator: 'roles',
-  name: 'Roles',
-  description:
-    'Definición y gestión de roles de acceso y sus permisos asociados.',
-  icon: 'admin_panel_settings',
-  actions: ['view', 'create', 'edit', 'delete'],
-  permissions: createPermissionsFromActions('roles', 'Roles', [
-    {
-      action: 'view',
-      id: 'r_v',
-      name: 'Ver Roles',
-      description: 'Listar y visualizar detalles de roles.',
-      enabled: true,
-    },
-    {
-      action: 'create',
-      id: 'r_c',
-      name: 'Crear Roles',
-      description: 'Definir nuevos roles personalizados.',
-      enabled: false,
-    },
-    {
-      action: 'edit',
-      id: 'r_e',
-      name: 'Editar Roles',
-      description: 'Modificar permisos de roles existentes.',
-      enabled: false,
-    },
-    {
-      action: 'delete',
-      id: 'r_d',
-      name: 'Eliminar Roles',
-      description: 'Remover roles del sistema.',
-      enabled: false,
-      requiresSuperAdmin: true,
-    },
-  ]),
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.basic,
-});
-
-const USERS_MODULE = new ModuleEntity({
-  order: 4,
-  parent: 'system',
-  indicator: 'users',
-  name: 'Users',
-  description: 'Gestión de usuarios y asignación de roles y permisos.',
-  icon: 'person',
-  actions: ['view', 'create', 'edit', 'delete', 'assign-roles'],
-  permissions: createPermissionsFromActions('users', 'Users', [
-    {
-      action: 'view',
-      id: 'u_v',
-      name: 'Ver Usuarios',
-      description: 'Listar y visualizar detalles de usuarios.',
-      enabled: true,
-    },
-    {
-      action: 'create',
-      id: 'u_c',
-      name: 'Crear Usuarios',
-      description: 'Registrar nuevos usuarios en el sistema.',
-      enabled: false,
-    },
-    {
-      action: 'edit',
-      id: 'u_e',
-      name: 'Editar Usuarios',
-      description: 'Modificar información de usuarios existentes.',
-      enabled: false,
-    },
-    {
-      action: 'delete',
-      id: 'u_d',
-      name: 'Eliminar Usuarios',
-      description: 'Dar de baja usuarios del sistema.',
-      enabled: false,
-      requiresSuperAdmin: true,
-    },
-    {
-      action: 'assign-roles',
-      id: 'u_ar',
-      name: 'Asignar Roles',
-      description: 'Otorgar y revocar roles a usuarios.',
-      enabled: false,
-    },
-  ]),
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.basic,
-});
-
-const CHANGELOG_MODULE = new ModuleEntity({
-  order: 5,
-  parent: 'system',
-  indicator: 'changelog',
-  name: 'Changelog',
-  description: 'Registro de cambios y actualizaciones del sistema.',
-  icon: 'history',
-  actions: ['read'],
-  permissions: createPermissionsFromActions('changelog', 'Changelog', [
-    {
-      action: 'read',
-      id: 'ch_r',
-      name: 'Leer Changelog',
-      description: 'Ver el historial de cambios y versiones del sistema.',
-      enabled: true,
-    },
-  ]),
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.basic,
-});
-
-const CONTACT_MODULE = new ModuleEntity({
-  order: 6,
-  parent: 'system',
-  indicator: 'contact',
-  name: 'Contact',
-  description: 'Información de contacto y formulario de comunicación.',
-  icon: 'mail',
-  actions: ['read'],
-  permissions: createPermissionsFromActions('contact', 'Contact', [
-    {
-      action: 'read',
-      id: 'ct_r',
-      name: 'Ver Contacto',
-      description:
-        'Acceso a información de contacto y formularios de comunicación.',
-      enabled: true,
-    },
-  ]),
-  status: 'active',
-  isSystem: true,
-  type: ModuleType.basic,
-});
-
-// ============================================================================
-// MÓDULOS DE NEGOCIO: Transacciones, Tarjetas, Tenants
-// ============================================================================
 
 const TRANSACTIONS_MODULE = new ModuleEntity({
-  order: 2,
-  parent: 'management',
+  order: 3,
   indicator: 'transactions',
   name: 'Transactions',
   description: 'Gestión y seguimiento de transacciones de pago.',
@@ -624,48 +215,156 @@ const TRANSACTIONS_MODULE = new ModuleEntity({
   type: ModuleType.basic,
 });
 
-const CARDS_MODULE = new ModuleEntity({
-  order: 3,
-  parent: 'management',
-  indicator: 'cards',
-  name: 'Cards',
-  description: 'Gestión de tarjetas de pago y datos de pago.',
-  icon: 'credit_card',
-  actions: ['view', 'create', 'edit', 'delete', 'export'],
-  permissions: createPermissionsFromActions('cards', 'Cards', [
+// ============================================================================
+// MÓDULOS DE NEGOCIO
+// ============================================================================
+
+// const MANAGEMENT_MODULE = new ModuleEntity({
+//   order: 2,
+//   indicator: 'management',
+//   name: 'Management',
+//   description:
+//     'Módulo grupo para gestión de transacciones, comercios y terminales.',
+//   status: 'active',
+//   isSystem: true,
+//   type: ModuleType.group,
+// });
+
+// const MERCHANTS_MODULE = new ModuleEntity({
+//   order: 1,
+//   parent: 'management',
+//   indicator: 'merchants',
+//   name: 'Merchants',
+//   description: 'Gestión de comercios y sus datos.',
+//   icon: 'business',
+//   actions: ['view', 'create', 'edit', 'delete'],
+//   permissions: createPermissionsFromActions('merchants', 'Merchants', [
+//     {
+//       action: 'view',
+//       id: 'is_v',
+//       name: 'Ver comercios',
+//       description: 'Listar y visualizar detalles de comercios.',
+//       enabled: true,
+//     },
+//     {
+//       action: 'create',
+//       id: 'is_c',
+//       name: 'Crear comercios',
+//       description: 'Registrar nuevos comercios en el sistema.',
+//       enabled: false,
+//       requiresSuperAdmin: true,
+//     },
+//     {
+//       action: 'edit',
+//       id: 'is_e',
+//       name: 'Editar comercios',
+//       description: 'Modificar información de comercios existentes.',
+//       enabled: false,
+//     },
+//     {
+//       action: 'delete',
+//       id: 'is_d',
+//       name: 'Eliminar comercios',
+//       description: 'Dar de baja comercios del sistema.',
+//       enabled: false,
+//       requiresSuperAdmin: true,
+//     },
+//   ]),
+//   status: 'active',
+//   isSystem: true,
+//   type: ModuleType.basic,
+// });
+
+// ============================================================================
+// MÓDULOS DEL SISTEMA KMS
+// ============================================================================
+const SYSTEM_MODULE = new ModuleEntity({
+  order: 4,
+  indicator: 'system',
+  name: 'System',
+  description:
+    'Módulo grupo para administración del sistema y configuración de la plataforma.',
+  status: 'active',
+  isSystem: true,
+  type: ModuleType.group,
+});
+
+const ANALYTICS_MODULE = new ModuleEntity({
+  order: 0,
+  parent: 'system',
+  indicator: 'analytics',
+  name: 'Analytics',
+  description:
+    'Métricas de rendimiento, volumen transaccional y tasas de conversión.',
+  icon: 'monitoring',
+  actions: ['view'],
+  permissions: createPermissionsFromActions('analytics', 'Analytics', [
     {
       action: 'view',
-      id: 'cd_v',
-      name: 'Ver Tarjetas',
-      description: 'Listar y visualizar detalles de tarjetas (enmascaradas).',
+      id: 'an_v',
+      name: 'Ver Analíticas',
+      description: 'Acceso a dashboards de rendimiento financiero.',
+      enabled: false,
+      requiresSuperAdmin: true,
+    },
+  ]),
+  status: 'active',
+  isSystem: true,
+  type: ModuleType.basic,
+});
+
+const API_CREDENTIALS_MODULE = new ModuleEntity({
+  order: 1,
+  parent: 'system',
+  indicator: 'api-credentials',
+  name: 'API Credentials',
+  description:
+    'Gestión de credenciales de API (OAuth2) y configuración de webhooks para integración.',
+  icon: 'api',
+  actions: ['read', 'update'],
+  permissions: createPermissionsFromActions('api-credentials', 'API Credentials', [
+    {
+      action: 'read',
+      id: 'apic_r',
+      name: 'Ver Credenciales',
+      description: 'Visualizar las credenciales OAuth2 y secretos de webhook del tenant.',
       enabled: true,
     },
     {
-      action: 'create',
-      id: 'cd_c',
-      name: 'Registrar Tarjetas',
-      description: 'Registrar nuevas tarjetas de pago.',
+      action: 'update',
+      id: 'apic_u',
+      name: 'Actualizar Credenciales',
+      description: 'Modificar la configuración del webhook y regenerar secretos.',
       enabled: true,
     },
+  ]),
+  status: 'active',
+  isSystem: true,
+  type: ModuleType.basic,
+});
+
+const AUDIT_MODULE = new ModuleEntity({
+  order: 2,
+  parent: 'system',
+  indicator: 'audit',
+  name: 'Audit',
+  description:
+    'Registro de actividad y trazabilidad de cambios en la plataforma.',
+  icon: 'policy',
+  actions: ['view', 'export'],
+  permissions: createPermissionsFromActions('audit', 'Audit', [
     {
-      action: 'edit',
-      id: 'cd_e',
-      name: 'Editar Tarjetas',
-      description: 'Actualizar información de tarjeta (alias, estado).',
-      enabled: true,
-    },
-    {
-      action: 'delete',
-      id: 'cd_d',
-      name: 'Eliminar Tarjetas',
-      description: 'Remover tarjetas del sistema.',
+      action: 'view',
+      id: 'au_v',
+      name: 'Consultar Logs',
+      description: 'Ver quién hizo qué y cuándo en la plataforma.',
       enabled: true,
     },
     {
       action: 'export',
-      id: 'cd_e',
-      name: 'Exportar Tarjetas',
-      description: 'Descargar reporte de tarjetas registradas.',
+      id: 'au_e',
+      name: 'Exportar Auditoría',
+      description: 'Generar reportes de cumplimiento (compliance).',
       enabled: false,
     },
   ]),
@@ -674,8 +373,99 @@ const CARDS_MODULE = new ModuleEntity({
   type: ModuleType.basic,
 });
 
+const MODULES_MODULE = new ModuleEntity({
+  order: 3,
+  parent: 'system',
+  indicator: 'modules',
+  name: 'Modules',
+  description: 'Gestión del catálogo de módulos de la plataforma.',
+  icon: 'dashboard',
+  actions: ['view', 'create', 'update', 'disable'],
+  permissions: createPermissionsFromActions('modules', 'Modules', [
+    {
+      action: 'view',
+      id: 'mod_v',
+      name: 'Ver Módulos',
+      description: 'Listar y visualizar módulos disponibles.',
+      enabled: true,
+    },
+    {
+      action: 'create',
+      id: 'mod_c',
+      name: 'Crear Módulos',
+      description: 'Registrar nuevos módulos en el sistema.',
+      enabled: false,
+      requiresSuperAdmin: true,
+    },
+    {
+      action: 'update',
+      id: 'mod_u',
+      name: 'Actualizar Módulos',
+      description: 'Modificar configuración de módulos existentes.',
+      enabled: false,
+      requiresSuperAdmin: true,
+    },
+    {
+      action: 'disable',
+      id: 'mod_d',
+      name: 'Deshabilitar Módulos',
+      description: 'Desactivar módulos temporalmente.',
+      enabled: false,
+      requiresSuperAdmin: true,
+    },
+  ]),
+  status: 'active',
+  isSystem: true,
+  type: ModuleType.basic,
+});
+
+const ROLES_MODULE = new ModuleEntity({
+  order: 4,
+  parent: 'system',
+  indicator: 'roles',
+  name: 'Roles',
+  description:
+    'Definición y gestión de roles de acceso y sus permisos asociados.',
+  icon: 'admin_panel_settings',
+  actions: ['view', 'create', 'edit', 'delete'],
+  permissions: createPermissionsFromActions('roles', 'Roles', [
+    {
+      action: 'view',
+      id: 'r_v',
+      name: 'Ver Roles',
+      description: 'Listar y visualizar detalles de roles.',
+      enabled: true,
+    },
+    {
+      action: 'create',
+      id: 'r_c',
+      name: 'Crear Roles',
+      description: 'Definir nuevos roles personalizados.',
+      enabled: false,
+    },
+    {
+      action: 'edit',
+      id: 'r_e',
+      name: 'Editar Roles',
+      description: 'Modificar permisos de roles existentes.',
+      enabled: false,
+    },
+    {
+      action: 'delete',
+      id: 'r_d',
+      name: 'Eliminar Roles',
+      description: 'Remover roles del sistema.',
+      enabled: false,
+      requiresSuperAdmin: true,
+    },
+  ]),
+  status: 'active',
+  isSystem: true,
+  type: ModuleType.basic,
+});
+
 const TENANTS_MODULE = new ModuleEntity({
-  order: 7,
+  order: 5,
   parent: 'system',
   indicator: 'tenants',
   name: 'Tenants',
@@ -734,6 +524,103 @@ const TENANTS_MODULE = new ModuleEntity({
   type: ModuleType.basic,
 });
 
+const USERS_MODULE = new ModuleEntity({
+  order: 6,
+  parent: 'system',
+  indicator: 'users',
+  name: 'Users',
+  description: 'Gestión de usuarios y asignación de roles y permisos.',
+  icon: 'person',
+  actions: ['view', 'create', 'edit', 'delete', 'assign-roles'],
+  permissions: createPermissionsFromActions('users', 'Users', [
+    {
+      action: 'view',
+      id: 'u_v',
+      name: 'Ver Usuarios',
+      description: 'Listar y visualizar detalles de usuarios.',
+      enabled: true,
+    },
+    {
+      action: 'create',
+      id: 'u_c',
+      name: 'Crear Usuarios',
+      description: 'Registrar nuevos usuarios en el sistema.',
+      enabled: false,
+    },
+    {
+      action: 'edit',
+      id: 'u_e',
+      name: 'Editar Usuarios',
+      description: 'Modificar información de usuarios existentes.',
+      enabled: false,
+    },
+    {
+      action: 'delete',
+      id: 'u_d',
+      name: 'Eliminar Usuarios',
+      description: 'Dar de baja usuarios del sistema.',
+      enabled: false,
+      requiresSuperAdmin: true,
+    },
+    {
+      action: 'assign-roles',
+      id: 'u_ar',
+      name: 'Asignar Roles',
+      description: 'Otorgar y revocar roles a usuarios.',
+      enabled: false,
+    },
+  ]),
+  status: 'active',
+  isSystem: true,
+  type: ModuleType.basic,
+});
+
+const CHANGELOG_MODULE = new ModuleEntity({
+  order: 7,
+  parent: 'system',
+  indicator: 'changelog',
+  name: 'Changelog',
+  description: 'Registro de cambios y actualizaciones del sistema.',
+  icon: 'history',
+  actions: ['read'],
+  permissions: createPermissionsFromActions('changelog', 'Changelog', [
+    {
+      action: 'read',
+      id: 'ch_r',
+      name: 'Leer Changelog',
+      description: 'Ver el historial de cambios y versiones del sistema.',
+      enabled: true,
+    },
+  ]),
+  status: 'active',
+  isSystem: true,
+  type: ModuleType.basic,
+});
+
+const CONTACT_MODULE = new ModuleEntity({
+  order: 8,
+  parent: 'system',
+  indicator: 'contact',
+  name: 'Contact',
+  description: 'Información de contacto y formulario de comunicación.',
+  icon: 'mail',
+  actions: ['read'],
+  permissions: createPermissionsFromActions('contact', 'Contact', [
+    {
+      action: 'read',
+      id: 'ct_r',
+      name: 'Ver Contacto',
+      description:
+        'Acceso a información de contacto y formularios de comunicación.',
+      enabled: true,
+    },
+  ]),
+  status: 'active',
+  isSystem: true,
+  type: ModuleType.basic,
+});
+
+
 // ============================================================================
 // EXPORTAR CATÁLOGO
 // ============================================================================
@@ -748,30 +635,28 @@ export const SYSTEM_MODULES: ModuleEntity[] = [
 
   // Módulo personal de tenant
   MY_TENANT_MODULE,
+  CARDS_MODULE,
+  TRANSACTIONS_MODULE,
 
   // Módulos de negocio
-  MANAGEMENT_MODULE,
-  TERMINALS_MODULE,
-  MERCHANTS_MODULE,
-  KEYS_MODULE,
-  TRANSACTIONS_MODULE,
-  CARDS_MODULE,
+  // MANAGEMENT_MODULE,
+  // MERCHANTS_MODULE,
 
   // Módulos de administración
   SYSTEM_MODULE,
-  CHANGELOG_MODULE,
   ANALYTICS_MODULE,
+  API_CREDENTIALS_MODULE,
   AUDIT_MODULE,
-  CONTACT_MODULE,
   MODULES_MODULE,
   ROLES_MODULE,
-  USERS_MODULE,
   TENANTS_MODULE,
-  API_CREDENTIALS_MODULE,
+  USERS_MODULE,
+
+  CHANGELOG_MODULE,
+  CONTACT_MODULE,
   // DOCUMENTATION_MODULE,
-  // PERMISSIONS_MODULE,
   // SUPPORT_MODULE,
-  // VAULT_MODULE,
+
 ];
 
 /**

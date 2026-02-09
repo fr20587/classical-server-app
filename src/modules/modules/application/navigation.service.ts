@@ -7,6 +7,7 @@ import { ApiResponse } from 'src/common/types/api-response.type';
 import { ModuleEntity } from '../domain/module.entity';
 import { NavigationItem, NavigationResponse } from 'src/common/types';
 import { PermissionsService } from 'src/modules/permissions/application/permissions.service';
+import { MongoDbUsersRepository } from 'src/modules/users/infrastructure/adapters';
 
 /**
  * NavigationService
@@ -24,6 +25,7 @@ export class NavigationService {
     private readonly asyncContextService: AsyncContextService,
     private readonly modulesService: ModulesService,
     private readonly permissionsService: PermissionsService,
+    private readonly usersRepository: MongoDbUsersRepository,
   ) {}
 
   /**
@@ -48,13 +50,13 @@ export class NavigationService {
       throw new Error('Invalid actor in context');
     }
 
-    this.logger.debug(
+    this.logger.log(
       `[${requestId}] Building navigation for actor: ${actor.actorType}:${actor.actorId}`,
     );
 
     try {
       // 2. Obtener permisos del usuario autenticado
-      this.logger.debug(`[${requestId}] Step 1: Resolving user permissions...`);
+      this.logger.log(`[${requestId}] Step 1: Resolving user permissions...`);
       const permissionsResolved =
         await this.permissionsService.resolvePermissions(actor);
 
@@ -66,7 +68,7 @@ export class NavigationService {
       userPermissions.push(...Array.from(permissionsResolved.moduleWildcards));
       userPermissions.push(...Array.from(permissionsResolved.exactPermissions));
 
-      this.logger.debug(
+      this.logger.log(
         `[${requestId}] User has ${userPermissions.length} permissions`,
         {
           hasGlobal: permissionsResolved.hasGlobalWildcard,
@@ -76,33 +78,28 @@ export class NavigationService {
       );
 
       // 3. Obtener módulos del sistema
-      this.logger.debug(
+      this.logger.log(
         `[${requestId}] Step 2: Fetching modules from database...`,
       );
       const modulesResult = await this.modulesService.findAll();
       const modules = modulesResult.data || [];
 
-      this.logger.debug(`[${requestId}] Fetched ${modules.length} modules`);
+      this.logger.log(`[${requestId}] Fetched ${modules.length} modules`);
 
       // 4. Construir estructura de navegación
-      this.logger.debug(
+      this.logger.log(
         `[${requestId}] Step 3: Building navigation structure...`,
       );
-      const navigationItems = this.buildNavigationItems(
+      const navigationItems = await this.buildNavigationItems(
         modules,
         userPermissions,
       );
 
-      this.logger.debug(
+      this.logger.log(
         `[${requestId}] Built navigation with ${navigationItems.length} items`,
       );
 
-      // 5. Construir respuesta con metadatos
-      const response: NavigationResponse = {
-        navigationItems,
-      };
-
-      this.logger.debug(`[${requestId}] Navigation built successfully`, {
+      this.logger.log(`[${requestId}] Navigation built successfully`, {
         totalModules: modules.filter((m) => m.status === 'active').length,
         accessibleModules: navigationItems.length,
       });
@@ -114,8 +111,7 @@ export class NavigationService {
         {
           totalModules: modules.filter((m) => m.status === 'active').length,
           accessibleModules: navigationItems.length,
-          generatedAt: new Date().toISOString(),
-          versionHash: '', // TODO: Agregar hash cuando se implemente caché
+          requestId,
         },
       );
     } catch (error) {
@@ -142,19 +138,32 @@ export class NavigationService {
    * @param userPermissions Array de permisos del usuario autenticado
    * @returns Array de NavigationItem ordenados
    */
-  private buildNavigationItems(
+  private async buildNavigationItems(
     modules: ModuleEntity[],
     userPermissions: string[],
-  ): NavigationItem[] {
-    this.logger.debug(
+  ): Promise<NavigationItem[]> {
+    this.logger.log(
       `Building navigation items for user with ${userPermissions.length} permissions`,
       { userPermissions },
     );
 
     // 1. Filtrar: solo módulos activos
-    const navigableModules = modules.filter((m) => m.status === 'active');
+    let navigableModules = modules.filter((m) => m.status === 'active');
+
+    // 1.1. Filtrar: excluir módulo 'cards' si usuario tiene rol 'merchant'
+    const userId = this.asyncContextService.getActorId()!;
+    const user = await this.usersRepository.findById(userId);
+
+    const isMerchant = user!.roleKey === 'merchant' || user!.additionalRoleKeys?.includes('merchant');
+
+    if (isMerchant) {
+      navigableModules = navigableModules.filter(
+        (m) => m.indicator !== 'cards',
+      );
+      this.logger.log('Filtered out cards module for merchant user');
+    }
     
-    this.logger.debug(
+    this.logger.log(
       `Navigable modules (active): ${navigableModules.length}`,
       {
         modules: navigableModules.map((m) => ({
@@ -196,7 +205,7 @@ export class NavigationService {
       const groupChildren = childModules
         .filter((m) => {
           const hasPermission = this.userHasModulePermission(userPermissions, m);
-          this.logger.debug(`Module ${m.indicator} (${m.name}): ${hasPermission ? 'ALLOWED' : 'DENIED'}`, {
+          this.logger.log(`Module ${m.indicator} (${m.name}): ${hasPermission ? 'ALLOWED' : 'DENIED'}`, {
             modulePermissions: m.permissions?.map((p) => ({
               indicator: p.indicator,
               enabled: p.enabled,
@@ -227,10 +236,11 @@ export class NavigationService {
 
     // 4. Procesar módulos sin parent: items básicos en top-level
     // Excluir módulos que ya fueron procesados como padres de grupo
+    this.logger.log(`Processing ${modulesWithoutParent.length} root-level modules`);
     for (const module of modulesWithoutParent) {
       if (!processedParentIndicators.has(module.indicator)) {
         const hasPermission = this.userHasModulePermission(userPermissions, module);
-        this.logger.debug(`Top-level module ${module.indicator} (${module.name}): ${hasPermission ? 'ALLOWED' : 'DENIED'}`, {
+        this.logger.log(`Top-level module ${module.indicator} (${module.name}): ${hasPermission ? 'ALLOWED' : 'DENIED'}`, {
           modulePermissions: module.permissions?.map((p) => ({
             indicator: p.indicator,
             enabled: p.enabled,
@@ -239,6 +249,13 @@ export class NavigationService {
         });
         if (hasPermission) {
           navigationItems.push(this.mapModuleToNavigationItem(module));
+        } else {
+          this.logger.log(`Filtered out root-level module ${module.indicator} due to missing permissions`, {
+            modulePermissions: module.permissions?.map((p) => ({
+              indicator: p.indicator,
+              enabled: p.enabled,
+            })),
+          });
         }
       }
     }
@@ -246,7 +263,7 @@ export class NavigationService {
     // 5. Ordenar items de navegación por 'order' (nivel 0)
     navigationItems.sort((a, b) => a.order - b.order);
 
-    this.logger.debug(
+    this.logger.log(
       `Navigation items built: ${navigationItems.length} items from ${navigableModules.length} modules`,
     );
 

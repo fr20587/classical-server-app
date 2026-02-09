@@ -39,7 +39,7 @@ export const SYSTEM_ROLES = [
 
   /**
    * Security Officer - Gestión de seguridad, roles, permisos, rotación de llaves
-   * Acceso completo a: roles, permisos, vault, keys, terminals, issuers
+   * Acceso completo a: roles, permisos, vault, keys, tenants, cards, transactions
    */
   {
     key: 'security_officer',
@@ -52,10 +52,9 @@ export const SYSTEM_ROLES = [
       `${MODULES.SUPPORT}.read`,
       `${MODULES.CONTACT}.read`,
       `${MODULES.DASHBOARD}.read`,
-      `${MODULES.MERCHANTS}.read`,
+      // `${MODULES.MERCHANTS}.read`,
       `${MODULES.CARDS}.read`,
       `${MODULES.USERS}.read`,
-      `${MODULES.TERMINALS}.read`,
       `${MODULES.TRANSACTIONS}.read`,
       `${MODULES.VAULT}.read`,
       `${MODULES.KEYS}.read`,
@@ -80,14 +79,14 @@ export const SYSTEM_ROLES = [
   },
 
   /**
-   * Operator - Operaciones cotidianas de terminales
+   * Operator - Operaciones cotidianas de la plataforma
    * Permisos específicos limitados a operaciones no-críticas
    * En issuers: solo CRUD, NO zpk operations
    */
   {
     key: 'ops',
     name: 'Operador',
-    description: 'Operaciones cotidianas de terminales y consultas',
+    description: 'Operaciones cotidianas de la plataforma y consultas',
     permissionKeys: [
       // Módulos públicos (solo lectura)
       `${MODULES.CHANGELOG}.read`,
@@ -98,19 +97,12 @@ export const SYSTEM_ROLES = [
       // Dashboard
       `${MODULES.DASHBOARD}.read`,
 
-      // Terminales
-      `${MODULES.TERMINALS}.create`,
-      `${MODULES.TERMINALS}.read`,
-      `${MODULES.TERMINALS}.update`,
-      `${MODULES.TERMINALS}.export`,
-      `${MODULES.TERMINALS}.enable`,
-      `${MODULES.TERMINALS}.disable`,
 
       // Merchants
-      `${MODULES.MERCHANTS}.view`,
-      `${MODULES.MERCHANTS}.create`,
-      `${MODULES.MERCHANTS}.edit`,
-      `${MODULES.MERCHANTS}.delete`,
+      // `${MODULES.MERCHANTS}.view`,
+      // `${MODULES.MERCHANTS}.create`,
+      // `${MODULES.MERCHANTS}.edit`,
+      // `${MODULES.MERCHANTS}.delete`,
 
       // Transactions
       `${MODULES.TRANSACTIONS}.create`,
@@ -156,14 +148,12 @@ export const SYSTEM_ROLES = [
       `${MODULES.AUDIT}.read`,
       `${MODULES.AUDIT}.export`,
       // Lectura de recursos
-      `${MODULES.TERMINALS}.read`,
-      `${MODULES.TERMINALS}.export`,
       `${MODULES.KEYS}.read`,
       `${MODULES.KEYS}.export`,
       `${MODULES.USERS}.read`,
       `${MODULES.USERS}.export`,
-      `${MODULES.MERCHANTS}.read`,
-      `${MODULES.MERCHANTS}.export`,
+      // `${MODULES.MERCHANTS}.read`,
+      // `${MODULES.MERCHANTS}.export`,
       `${MODULES.TRANSACTIONS}.read`,
       `${MODULES.TRANSACTIONS}.export`,
       `${MODULES.CARDS}.read`,
@@ -232,13 +222,13 @@ export const SYSTEM_ROLES = [
 
   /**
    * Merchant - Rol base para comerciantes
-   * Permisos para gestionar su propia información, crear terminales y ver transacciones de su negocio
+   * Permisos para gestionar su propia información, crear usuarios y ver transacciones de su negocio
    */
   {
     key: 'merchant',
     name: 'Comerciante',
     description:
-      'Rol base para comerciantes con permisos para gestionar su propia información, crear terminales y ver transacciones de su negocio',
+      'Rol base para comerciantes con permisos para gestionar su propia información, crear usuarios y ver transacciones de su negocio',
     permissionKeys: [
       // Public / help
       `${MODULES.CHANGELOG}.read`,
@@ -253,12 +243,7 @@ export const SYSTEM_ROLES = [
       `${MODULES.MY_TENANT}.update`,
 
       // Gestión del comercio (propio)
-      `${MODULES.MERCHANTS}.view`,
-
-      // Terminales del comercio
-      `${MODULES.TERMINALS}.view`,
-      `${MODULES.TERMINALS}.webhooks`,
-      `${MODULES.TERMINALS}.logs`,
+      // `${MODULES.MERCHANTS}.view`,
 
       // Usuarios del comercio
       `${MODULES.USERS}.view`,
@@ -268,11 +253,9 @@ export const SYSTEM_ROLES = [
       `${MODULES.TRANSACTIONS}.view`,
       `${MODULES.TRANSACTIONS}.export`,
 
-      // Tarjetas / clientes
-      `${MODULES.CARDS}.view`,
-      `${MODULES.CARDS}.create`,
-      `${MODULES.CARDS}.edit`,
-      `${MODULES.CARDS}.delete`,
+      // Api Credentials (propio del comercio)
+      `${MODULES.API_CREDENTIALS}.read`,
+      `${MODULES.API_CREDENTIALS}.update`,
     ],
     status: 'active',
     isSystem: true,
