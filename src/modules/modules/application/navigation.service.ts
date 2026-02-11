@@ -225,6 +225,7 @@ export class NavigationService {
           subtitle: parentModule?.description,
           type: parentModule?.type || 'group',
           icon: parentModule?.icon,
+          indicator: parentModule?.indicator,
           order: parentModule?.order ?? 0,
           children: groupChildren,
         };
