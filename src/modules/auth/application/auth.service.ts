@@ -36,6 +36,7 @@ import { ServiceLoginDto } from '../dto/service-login.dto';
 
 import { ApiResponse } from 'src/common/types/api-response.type';
 import { ConfirmationCodeService } from '../infrastructure/services/confirmation-code.service';
+import { SessionPersistenceService } from '../infrastructure/services/session-persistence.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserRegisteredEvent } from '../events/auth.events';
 import { CardsService } from 'src/modules/cards/application/cards.service';
@@ -66,6 +67,7 @@ export class AuthService {
     private readonly eventEmitter: EventEmitter2,
     private readonly permissionsService: PermissionsService,
     private readonly sessionService: SessionService,
+    private readonly sessionPersistenceService: SessionPersistenceService,
     private readonly usersService: UsersService,
     private readonly tenantsRepository: TenantsRepository,
     private readonly tenantVaultService: TenantVaultService,
@@ -207,18 +209,27 @@ export class AuthService {
 
       // Guardar sesión en caché con TTL = tiempo de vida del refresh token (7 días = 604800 segundos)
       const refreshTokenTtl = 604800; // 7 días
+      const loginTimestamp = new Date();
       await this.sessionService.saveSession(
         userId,
         {
           userId,
           user: validation.user!,
-          loginTimestamp: new Date().toISOString(),
+          loginTimestamp: loginTimestamp.toISOString(),
           accessToken: accessResult.getValue(),
           refreshToken: refreshToken || '',
           tokenType: 'Bearer',
           accessTokenExpiresIn: 3600,
         },
         refreshTokenTtl,
+      );
+
+      // ⭐ NUEVO: Persister sesión en MongoDB con datos básicos (sin tokens)
+      await this.sessionPersistenceService.createSession(
+        userId,
+        validation.user!,
+        loginTimestamp,
+        'Bearer',
       );
 
       // Obterner tarjetas del usuario
@@ -421,18 +432,25 @@ export class AuthService {
 
       // Actualizar sesión en caché con nuevo access token y TTL = tiempo de vida del refresh token (7 días)
       const refreshTokenTtl = 604800; // 7 días
+      const newAccessToken = newTokenResult.getValue();
       await this.sessionService.updateSession(
         userId,
         {
-          accessToken: newTokenResult.getValue(),
+          accessToken: newAccessToken,
         },
         refreshTokenTtl,
+      );
+
+      // ⭐ NUEVO: Registrar actualización del access token en MongoDB
+      await this.sessionPersistenceService.recordAccessTokenRefresh(
+        userId,
+        newAccessToken,
       );
 
       return ApiResponse.ok<LoginResponseDto>(
         HttpStatus.OK,
         {
-          access_token: newTokenResult.getValue(),
+          access_token: newAccessToken,
           token_type: 'Bearer',
           expires_in: 3600,
         },

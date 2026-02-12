@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { AuditModule } from '../audit/audit.module';
 import { CachingModule } from 'src/common/cache/cache.module';
@@ -13,6 +15,7 @@ import { AuthService } from './application/auth.service';
 import { AsyncContextService } from 'src/common/context/async-context.service';
 import { ConfirmationCodeService } from './infrastructure/services/confirmation-code.service';
 import { SessionService } from './infrastructure/services/session.service';
+import { SessionPersistenceService } from './infrastructure/services/session-persistence.service';
 
 import { AuthController } from './infrastructure/controllers/auth.controller';
 
@@ -21,10 +24,14 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwksAdapter } from './infrastructure/adapters/jwks.adapter';
 import { JwtTokenAdapter } from './infrastructure/adapters/jwt-token.adapter';
 import { ReplayProtectionAdapter } from './infrastructure/adapters/replay-protection.adapter';
+import { SessionRepository } from './infrastructure/adapters/session.repository';
 import { CardsService } from '../cards/application/cards.service';
 import { CardsRepository } from '../cards/infrastructure/adapters';
 import { Iso4PinblockService } from '../cards/infrastructure/services/iso4-pinblock.service';
 import { TenantsModule } from '../tenants';
+
+import { Session, SessionSchema } from './infrastructure/schemas/session.schema';
+import { SessionExpirationScheduler } from './infrastructure/schedulers/session-expiration.scheduler';
 
 /**
  * Módulo de autenticación.
@@ -50,6 +57,8 @@ import { TenantsModule } from '../tenants';
     VaultModule,
     PermissionsModule,
     TenantsModule,
+    MongooseModule.forFeature([{ name: Session.name, schema: SessionSchema }]),
+    ScheduleModule.forRoot(),
   ],
   controllers: [AuthController],
   providers: [
@@ -59,6 +68,9 @@ import { TenantsModule } from '../tenants';
     // CardsRepository,
     // Iso4PinblockService,
     SessionService,
+    SessionRepository,
+    SessionPersistenceService,
+    SessionExpirationScheduler,
     JwtStrategy,
     ConfirmationCodeService,
     {
@@ -78,6 +90,7 @@ import { TenantsModule } from '../tenants';
     PassportModule,
     AuthService,
     SessionService,
+    SessionPersistenceService,
     ConfirmationCodeService,
     'IJwksPort',
     'IReplayProtectionPort',
