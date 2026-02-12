@@ -368,7 +368,7 @@ export class UsersRepository implements IUsersPort {
       {
         path: 'tenant',
         model: 'Tenant',
-        select: ['id', 'name', 'nit', 'email', 'phone', 'businessAddress'],
+        select: ['id', 'businessName', 'nit', 'email', 'phone', 'status', 'businessAddress'],
       },
       {
         path: 'lifecycleHistory',
