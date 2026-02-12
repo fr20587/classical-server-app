@@ -6,7 +6,7 @@ import { HttpStatus } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UsersRepository } from '../infrastructure/adapters/users.repository';
 import { User } from '../infrastructure/schemas/user.schema';
-import { UserStatus } from '../domain/enums';
+import { UserStatus } from '../domain/enums/enums';
 import { AsyncContextService } from 'src/common/context/async-context.service';
 import { AuditService } from '../../audit/application/audit.service';
 

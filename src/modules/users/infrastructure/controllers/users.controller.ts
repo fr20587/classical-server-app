@@ -32,8 +32,6 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
-// import { PermissionsGuard } from 'src/modules/permissions/infrastructure/guards/permissions.guard';
-// import { Permissions } from 'src/modules/auth/decorators/permissions.decorator';
 import { UsersService } from 'src/modules/users/application/users.service';
 import { AsyncContextService } from 'src/common/context/async-context.service';
 import {
@@ -41,8 +39,9 @@ import {
   UpdateUserRolesDto,
   UpdatePasswordDto,
   UpdateUserDto,
+  TransitionUserStateDto,
 } from 'src/modules/users/dto';
-import { UserStatus } from '../../domain/enums';
+import { UserStatus } from '../../domain/enums/enums';
 import type { QueryParams, SortOrder } from 'src/common/types';
 
 /**
@@ -481,6 +480,168 @@ export class UsersController {
     @Param('id') id: string,
   ): Promise<Response> {
     const response = await this.usersService.disable(id);
+    return res.status(response.statusCode).json(response);
+  }
+
+  /**
+   * Cambiar estado del usuario
+   * POST /users/:id/transition
+   *
+   * Transiciones permitidas según máquina de estados:
+   * - INACTIVE → ACTIVE (verificación de teléfono)
+   * - ACTIVE → SUSPENDED (reporte de incidencia)
+   * - SUSPENDED → ACTIVE (incidencia resuelta)
+   * - {INACTIVE | ACTIVE | SUSPENDED} → DISABLED (cierre definitivo)
+   */
+  @Post(':id/transition')
+  @HttpCode(HttpStatus.OK)
+  // @Permissions('users.manage')
+  @ApiOperation({
+    summary: 'Cambiar estado del usuario',
+    description:
+      'Cambia el estado de un usuario según la máquina de estados definida. Registra la transición en el historial.',
+  })
+  @ApiBody({
+    type: TransitionUserStateDto,
+    examples: {
+      example1: {
+        summary: 'Verificar teléfono',
+        value: {
+          targetState: 'active',
+          reason: 'Teléfono verificado correctamente',
+        },
+      },
+      example2: {
+        summary: 'Reportar incidencia',
+        value: {
+          targetState: 'suspended',
+          reason: 'Actividad sospechosa detectada',
+        },
+      },
+      example3: {
+        summary: 'Cierre de cuenta',
+        value: {
+          targetState: 'disabled',
+          reason: 'Solicitud de eliminación de cuenta del usuario',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: 'Estado actualizado',
+    schema: {
+      example: {
+        ok: true,
+        statusCode: 200,
+        message: 'Usuario pasó de active a suspended',
+        data: {
+          id: 'user-001',
+          email: 'john@example.com',
+          fullname: 'John Doe',
+          status: 'suspended',
+          roleKey: 'user',
+          createdAt: '2025-01-05T10:00:00Z',
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Transición de estado inválida',
+  })
+  @ApiNotFoundResponse({
+    description: 'Usuario no encontrado',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'No autorizado',
+  })
+  @ApiForbiddenResponse({
+    description: 'Sin permisos para cambiar estados',
+  })
+  async transitionState(
+    @Res() res: Response,
+    @Param('id') id: string,
+    @Body() dto: TransitionUserStateDto,
+  ): Promise<Response> {
+    const actor = this.asyncContextService.getActor();
+    const response = await this.usersService.transitionState(id, dto, actor);
+    return res.status(response.statusCode).json(response);
+  }
+
+  /**
+   * Obtener historial de ciclo de vida del usuario
+   * GET /users/:id/lifecycle
+   */
+  @Get(':id/lifecycle')
+  @HttpCode(HttpStatus.OK)
+  // @Permissions('users.read')
+  @ApiOperation({
+    summary: 'Obtener historial de ciclo de vida',
+    description:
+      'Obtiene el historial completo de cambios de estado (transiciones) de un usuario, paginado.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Número de página (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items por página (default: 20)',
+  })
+  @ApiOkResponse({
+    description: 'Historial recuperado',
+    schema: {
+      example: {
+        ok: true,
+        statusCode: 200,
+        data: {
+          events: [
+            {
+              id: 'evt-001',
+              userId: 'user-001',
+              fromState: 'inactive',
+              toState: 'active',
+              triggeredBy: {
+                userId: 'admin-001',
+                username: 'admin_user',
+                roleKey: 'admin',
+              },
+              reason: 'Teléfono verificado',
+              timestamp: '2025-01-10T15:30:00Z',
+            },
+          ],
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            pageSize: 20,
+            totalCount: 1,
+          },
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Usuario no encontrado',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'No autorizado',
+  })
+  @ApiForbiddenResponse({
+    description: 'Sin permisos para leer usuarios',
+  })
+  async getLifecycle(
+    @Res() res: Response,
+    @Param('id') id: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<Response> {
+    const response = await this.usersService.getUserLifecycle(id, {
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 20,
+    });
     return res.status(response.statusCode).json(response);
   }
 }

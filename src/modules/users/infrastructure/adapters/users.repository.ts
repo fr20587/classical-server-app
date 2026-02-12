@@ -7,7 +7,7 @@ import type {
   UpdateUserRolesPayload,
   IUsersPort,
 } from '../../domain/ports/users.port';
-import { UserStatus } from '../../domain/enums';
+import { UserStatus } from '../../domain/enums/enums';
 
 /**
  * Adaptador MongoDB para Users.
@@ -44,8 +44,26 @@ export class UsersRepository implements IUsersPort {
    */
   async findById(id: string): Promise<User | null> {
     return this.userModel
-      .findOne({ id, status: UserStatus.ACTIVE })
+      .findOne({ id })
       .populate(this.populateOptions())
+      .populate({
+        path: 'recentActivity',
+        model: 'AuditEvent',
+        select: [
+          'id',
+          'at', 
+          'requestId', 
+          'ipAddress', 
+          'userAgent', 
+          'action', 
+          'module', 
+          'endpoint', 
+          'result',
+          'latency',
+          'statusCode',
+          'severity'
+        ]
+      })
       .exec();
   }
 
@@ -251,6 +269,20 @@ export class UsersRepository implements IUsersPort {
   }
 
   /**
+   * Actualizar estado del usuario
+   */
+  async updateStatus(id: string, newStatus: UserStatus): Promise<User | null> {
+    return this.userModel
+      .findOneAndUpdate(
+        { id },
+        { $set: { status: newStatus } },
+        { new: true },
+      )
+      .populate(this.populateOptions())
+      .exec();
+  }
+
+  /**
    * Obtener documento raw (usado internamente).
    */
   async findByIdRaw(id: string): Promise<User | null> {
@@ -320,17 +352,29 @@ export class UsersRepository implements IUsersPort {
    * Centraliza la configuración de populate en un solo lugar.
    */
   private populateOptions() {
-    return {
-      path: 'role',
-      model: 'Role',
-      select: [
-        'id',
-        'name',
-        'key',
-        'permissionKeys',
-        'description',
-        'isSystem',
-      ],
-    };
+    return [
+      {
+        path: 'role',
+        model: 'Role',
+        select: [
+          'id',
+          'name',
+          'key',
+          'permissionKeys',
+          'description',
+          'isSystem',
+        ],
+      }, 
+      {
+        path: 'tenant',
+        model: 'Tenant',
+        select: ['id', 'name', 'nit', 'email', 'phone', 'businessAddress'],
+      },
+      {
+        path: 'lifecycleHistory',
+        model: 'UserLifecycle',
+        select: ['id', 'userId', 'previousState', 'newState', 'reason', 'createdAt'],
+      }
+    ];
   }
 }

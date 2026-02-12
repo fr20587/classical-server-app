@@ -1,10 +1,11 @@
 import type { ApiResponse } from 'src/common/types/api-response.type';
 
-import type { UserStatus } from '../enums';
+import type { UserStatus } from '../enums/enums';
 import { Role } from 'src/modules/roles/domain';
 import { User } from '../../infrastructure/schemas/user.schema';
 import { QueryFilter } from 'mongoose';
 import { QueryParams } from 'src/common/types';
+import { AuditEvent } from 'src/modules/audit/schemas/audit-event.schema';
 
 export interface CreateUserPayload {
   userId?: string;
@@ -51,6 +52,7 @@ export interface UserDTO {
   isSystemAdmin?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
+  recentActivity?: AuditEvent[];
 }
 
 /**

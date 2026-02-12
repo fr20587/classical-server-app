@@ -4,6 +4,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as argon2 from 'argon2';
 
 import { UsersRepository } from '../infrastructure/adapters/users.repository';
+import { UserLifecycleRepository } from '../infrastructure/adapters/user-lifecycle.repository';
 
 import { AsyncContextService } from 'src/common/context/async-context.service';
 import { AuditService } from '../../audit/application/audit.service';
@@ -22,9 +23,13 @@ import {
   UpdateUserRolesDto,
   UpdateUserDto,
   UpdateMyPasswordDto,
+  TransitionUserStateDto,
 } from '../dto';
 import { PaginationMeta, QueryParams } from 'src/common/types';
 import { buildMongoQuery } from 'src/common/helpers';
+import { UserStatus } from '../domain/enums/enums';
+import { isValidTransition } from '../domain/states-machines/user.state-machine';
+import type { Actor } from 'src/common/interfaces';
 
 /**
  * Servicio de gestión de usuarios.
@@ -45,6 +50,7 @@ export class UsersService implements IUsersService {
   constructor(
     private eventEmitter: EventEmitter2,
     private usersRepository: UsersRepository,
+    private userLifecycleRepository: UserLifecycleRepository,
     private asyncContextService: AsyncContextService,
     private auditService: AuditService,
   ) { }
@@ -814,6 +820,7 @@ export class UsersService implements IUsersService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       initials: user.initials,
+      recentActivity: user.recentActivity,
     };
   }
 
@@ -1119,6 +1126,293 @@ export class UsersService implements IUsersService {
         HttpStatus.INTERNAL_SERVER_ERROR,
         errorMsg,
         'Error al cambiar contraseña',
+        { requestId },
+      );
+    }
+  }
+
+  /**
+   * Cambiar el estado de un usuario (transición de máquina de estados).
+   *
+   * Auditoría end-to-end:
+   * - Validación de existencia del usuario
+   * - Validación de transición permitida
+   * - Cambio de estado
+   * - Registro de auditoría con cambios antes/después
+   * - Emisión de evento de dominio
+   *
+   * Transiciones permitidas:
+   * - INACTIVE → ACTIVE (verificación de teléfono)
+   * - ACTIVE → SUSPENDED (reporte de incidencia)
+   * - SUSPENDED → ACTIVE (incidencia resuelta)
+   * - {INACTIVE | ACTIVE | SUSPENDED} → DISABLED (cierre definitivo)
+   */
+  async transitionState(
+    userId: string,
+    dto: TransitionUserStateDto,
+    actor?: Actor,
+  ): Promise<ApiResponse<UserDTO>> {
+    const requestId = this.asyncContextService.getRequestId();
+    const actorId = this.asyncContextService.getActorId()!;
+
+    try {
+      this.logger.log(
+        `[${requestId}] Transitioning user ${userId} to state: ${dto.targetState}`,
+      );
+
+      // Obtener usuario actual
+      const currentUser = await this.usersRepository.findByIdRaw(userId);
+      if (!currentUser) {
+        this.logger.warn(`[${requestId}] User not found: ${userId}`);
+        return ApiResponse.fail<UserDTO>(
+          HttpStatus.NOT_FOUND,
+          'Usuario no encontrado',
+          'El usuario no existe',
+          { requestId },
+        );
+      }
+
+      // Validar transición según máquina de estados
+      const currentState = currentUser.status as UserStatus;
+      const isValidTransitionResult = isValidTransition(currentState, dto.targetState);
+
+      if (!isValidTransitionResult) {
+        this.logger.warn(
+          `[${requestId}] Invalid state transition: ${currentState} → ${dto.targetState}`,
+        );
+
+        this.auditService.logError(
+          'USER_STATE_TRANSITION_INVALID',
+          'user',
+          userId,
+          new Error(
+            `Invalid transition from ${currentState} to ${dto.targetState}`,
+          ),
+          {
+            module: 'users',
+            severity: 'MEDIUM',
+            tags: ['user', 'state_transition', 'invalid'],
+            actorId,
+          },
+        );
+
+        return ApiResponse.fail<UserDTO>(
+          HttpStatus.BAD_REQUEST,
+          `Transición inválida de ${currentState} a ${dto.targetState}`,
+          'La transición de estado no es permitida',
+          { requestId },
+        );
+      }
+
+      // Realizar transición
+      const updatedUser = await this.usersRepository.updateStatus(
+        userId,
+        dto.targetState,
+      );
+
+      if (!updatedUser) {
+        return ApiResponse.fail<UserDTO>(
+          HttpStatus.NOT_FOUND,
+          'Usuario no encontrado',
+          'No se pudo actualizar el estado del usuario',
+          { requestId },
+        );
+      }
+
+      // Auditoría: transición exitosa
+      this.auditService.logAllow('USER_STATE_TRANSITIONED', 'user', userId, {
+        module: 'users',
+        severity: 'HIGH',
+        tags: ['user', 'state_transition', 'successful'],
+        actorId,
+        changes: {
+          before: {
+            status: currentState,
+          },
+          after: {
+            status: dto.targetState,
+            reason: dto.reason,
+          },
+        },
+      });
+
+      // Crear evento de ciclo de vida
+      const lifecycleEvent = {
+        userId,
+        fromState: currentState,
+        toState: dto.targetState,
+        triggeredBy: {
+          userId: actorId,
+          username: actor?.sub || 'system',
+          roleKey: actor?.scopes?.[0] || 'system',
+        },
+        reason: dto.reason,
+        timestamp: new Date(),
+      };
+
+      await this.userLifecycleRepository.create(lifecycleEvent);
+
+      // Emitir evento de dominio
+      this.eventEmitter.emit('user.state_transitioned', {
+        userId,
+        fromState: currentState,
+        toState: dto.targetState,
+        reason: dto.reason,
+        triggeredBy: {
+          userId: actorId,
+          username: actor?.sub || 'system',
+          roleKey: actor?.scopes?.[0] || 'system',
+        },
+        timestamp: new Date(),
+      });
+
+      this.logger.log(
+        `[${requestId}] User state transitioned successfully: ${currentState} → ${dto.targetState}`,
+      );
+
+      const userDto = this.mapToDTO(updatedUser);
+      return ApiResponse.ok<UserDTO>(
+        HttpStatus.OK,
+        userDto,
+        `Usuario pasó de ${currentState} a ${dto.targetState}`,
+        { requestId },
+      );
+    } catch (error: any) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[${requestId}] Failed to transition user state: ${errorMsg}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+
+      this.auditService.logError(
+        'USER_STATE_TRANSITION_FAILED',
+        'user',
+        userId,
+        error instanceof Error ? error : new Error(errorMsg),
+        {
+          module: 'users',
+          severity: 'HIGH',
+          tags: ['user', 'state_transition', 'error'],
+          actorId,
+        },
+      );
+
+      return ApiResponse.fail<UserDTO>(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        errorMsg,
+        'Error al cambiar estado del usuario',
+        { requestId },
+      );
+    }
+  }
+
+  /**
+   * Obtener historial de ciclo de vida de un usuario
+   */
+  async getUserLifecycle(
+    userId: string,
+    pagination?: { page: number; limit: number },
+  ): Promise<
+    ApiResponse<{
+      events: any[];
+      pagination: {
+        currentPage: number;
+        totalPages: number;
+        pageSize: number;
+        totalCount: number;
+      };
+    }>
+  > {
+    const requestId = this.asyncContextService.getRequestId();
+    const actorId = this.asyncContextService.getActorId()!;
+
+    try {
+      this.logger.log(
+        `[${requestId}] Fetching lifecycle for user: ${userId}`,
+      );
+
+      // Verificar que el usuario existe
+      const user = await this.usersRepository.findByIdRaw(userId);
+      if (!user) {
+        this.logger.warn(`[${requestId}] User not found: ${userId}`);
+        return ApiResponse.fail(
+          HttpStatus.NOT_FOUND,
+          'Usuario no encontrado',
+          'El usuario no existe',
+          { requestId },
+        );
+      }
+
+      // Obtener historial de ciclo de vida
+      const page = pagination?.page || 1;
+      const limit = pagination?.limit || 20;
+
+      const { events, total } =
+        await this.userLifecycleRepository.findByUserId(userId, {
+          page,
+          limit,
+        });
+
+      const totalPages = Math.ceil(total / limit);
+
+      // Auditoría: acceso al historial
+      this.auditService.logAllow('USER_LIFECYCLE_READ', 'user', userId, {
+        module: 'users',
+        severity: 'LOW',
+        tags: ['user', 'lifecycle', 'read'],
+        actorId,
+      });
+
+      this.logger.log(
+        `[${requestId}] Lifecycle events retrieved: ${events.length} events`,
+      );
+
+      return ApiResponse.ok(
+        HttpStatus.OK,
+        {
+          events: events.map((e) => ({
+            id: e.id,
+            userId: e.userId,
+            fromState: e.fromState,
+            toState: e.toState,
+            triggeredBy: e.triggeredBy,
+            reason: e.reason,
+            timestamp: e.timestamp,
+          })),
+          pagination: {
+            currentPage: page,
+            totalPages,
+            pageSize: limit,
+            totalCount: total,
+          },
+        },
+        undefined,
+        { requestId },
+      );
+    } catch (error: any) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[${requestId}] Failed to fetch user lifecycle: ${errorMsg}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+
+      this.auditService.logError(
+        'USER_LIFECYCLE_READ_FAILED',
+        'user',
+        userId,
+        error instanceof Error ? error : new Error(errorMsg),
+        {
+          module: 'users',
+          severity: 'MEDIUM',
+          tags: ['user', 'lifecycle', 'error'],
+          actorId,
+        },
+      );
+
+      return ApiResponse.fail(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        errorMsg,
+        'Error al obtener historial del usuario',
         { requestId },
       );
     }

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { ActivityEventType } from '../../domain/enums';
+import { ActivityEventType } from '../../domain/enums/enums';
 
 /**
  * Evento de actividad de usuario.

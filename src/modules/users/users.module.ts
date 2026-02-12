@@ -11,8 +11,10 @@ import { UsersController } from './infrastructure/controllers/users.controller';
 import { ProfileController } from './infrastructure/controllers/profile.controller';
 
 import { UsersRepository } from './infrastructure/adapters/users.repository';
+import { UserLifecycleRepository } from './infrastructure/adapters/user-lifecycle.repository';
 
 import { User, UserSchema } from './infrastructure/schemas/user.schema';
+import { UserLifecycle, UserLifecycleSchema } from './infrastructure/schemas/user-lifecycle.schema';
 
 /**
  * Módulo de gestión de usuarios.
@@ -21,8 +23,9 @@ import { User, UserSchema } from './infrastructure/schemas/user.schema';
  * Todas las operaciones relacionadas con usuarios están centralizadas aquí.
  *
  * Servicios:
- * - UsersService: CRUD básico con validaciones y encapsulación de Argon2
+ * - UsersService: CRUD básico con validaciones, máquina de estados y encapsulación de Argon2
  * - UsersRepository: Adaptador MongoDB implementando patrón Repository
+ * - UserLifecycleRepository: Adaptador MongoDB para historial de ciclo de vida
  *
  * Controladores:
  * - UsersController: Endpoints REST protegidos por JWT y permisos
@@ -31,29 +34,39 @@ import { User, UserSchema } from './infrastructure/schemas/user.schema';
  *   - GET /users/:userId - Obtener usuario
  *   - POST /users/:userId/roles - Actualizar roles
  *   - POST /users/:userId/password - Cambiar contraseña
+ *   - PATCH /users/:userId - Actualizar datos
  *   - DELETE /users/:userId - Deshabilitar usuario
+ *   - POST /users/:userId/transition - Cambiar estado del usuario
+ *   - GET /users/:userId/lifecycle - Obtener historial de cambios de estado
  *
  * Eventos:
  * - user.created: Emitido al crear usuario
  * - user.password_changed: Emitido al cambiar contraseña
+ * - user.state_transitioned: Emitido al cambiar estado del usuario
+ *
+ * Máquina de estados:
+ * - INACTIVE (estado inicial) → ACTIVE (verificación de teléfono)
+ * - ACTIVE → SUSPENDED (reporte de incidencia)
+ * - SUSPENDED → ACTIVE (incidencia resuelta)
+ * - {INACTIVE | ACTIVE | SUSPENDED} → DISABLED (cierre definitivo)
  *
  * Exportaciones:
  * - UsersService: Para acceso desde otros módulos
  * - UsersRepository: Para acceso desde otros módulos
+ * - UserLifecycleRepository: Para acceso desde otros módulos
  * - MongooseModule: Para extensiones de esquema
- *
- * Nota: Este módulo importa AuthzModule para acceso a PermissionsGuard.
- * AuthzModule solo importa el esquema User (no el módulo completo), evitando
- * dependencias circulares.
  */
 @Module({
   imports: [
     AuditModule,
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: UserLifecycle.name, schema: UserLifecycleSchema },
+    ]),
     // PermissionsModule,
   ],
   controllers: [UsersController, ProfileController],
-  providers: [AsyncContextService, UsersService, UsersRepository],
-  exports: [MongooseModule, UsersService, UsersRepository],
+  providers: [AsyncContextService, UsersService, UsersRepository, UserLifecycleRepository],
+  exports: [MongooseModule, UsersService, UsersRepository, UserLifecycleRepository],
 })
 export class UsersModule {}

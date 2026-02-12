@@ -6,9 +6,11 @@ import { ActivityEvent, ActivityEventSchema } from './activity-event.schema';
 import { SecurityInfo, SecurityInfoSchema } from './security-info.schema';
 import { AbstractSchema } from 'src/common/schemas/abstract.schema';
 
-import { UserStatus } from '../../domain/enums';
+import { UserStatus } from '../../domain/enums/enums';
 import { Role } from 'src/modules/roles/domain';
 import { Tenant } from 'src/modules/tenants/infrastructure/schemas/tenant.schema';
+import { UserLifecycle } from './user-lifecycle.schema';
+import { AuditEvent } from 'src/modules/audit/schemas/audit-event.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -62,17 +64,16 @@ export class User extends AbstractSchema {
   })
   status: UserStatus;
 
-  @Prop({ type: SecurityInfoSchema, default: { apiCalls30d: 0 } })
-  security?: SecurityInfo;
-
-  @Prop({ type: [ActivityEventSchema], default: [] })
-  recentActivity?: ActivityEvent[];
-
+  @Prop({ type: Date })
+  lastActive?: Date;
+  
   @Prop({ type: Object })
   metadata?: Record<string, any>;
 
-  @Prop({ type: Date })
-  lastActive?: Date;
+  
+  recentActivity?: AuditEvent[];
+
+  lifecycleHistory?: UserLifecycle[];
 
   role?: Role;
 
@@ -104,6 +105,22 @@ UserSchema.virtual('tenant', {
   foreignField: 'id',
   justOne: true,
 });
+
+UserSchema.virtual('lifecycleHistory', {
+  ref: 'UserLifecycle',
+  localField: 'id',
+  foreignField: 'userId',
+  justOne: false,
+});
+
+UserSchema.virtual('recentActivity', {
+  ref: 'AuditEvent',
+  localField: 'id',
+  foreignField: 'userId',
+  justOne: false,
+  options: { sort: { timestamp: -1 }, limit: 10 },
+});
+
 
 // Hook de pre-save para generar el inciales
 UserSchema.pre('save', function (this: UserDocument) {
