@@ -348,6 +348,51 @@ export class UsersRepository implements IUsersPort {
   }
 
   /**
+   * Obtiene estadísticas de usuarios activos con roleKey='user' en un rango de fechas
+   * Retorna conteo actual y conteo del período anterior de igual duración
+   */
+  async getActiveUserStats(
+    dateFrom: string,
+    dateTo: string,
+    tenantId?: string,
+  ): Promise<{ current: number; previous: number }> {
+    try {
+      const from = new Date(dateFrom);
+      const to = new Date(dateTo);
+      const rangeDuration = to.getTime() - from.getTime();
+      const previousFrom = new Date(from.getTime() - rangeDuration);
+
+      const roleFilter = { 
+        $or: [
+          { roleKey: 'user' },
+          { additionalRoleKeys: 'user' }
+        ]
+      };
+
+      const filterCurrent = tenantId 
+        ? { ...roleFilter, tenantId, createdAt: { $gte: from, $lte: to } }
+        : { ...roleFilter, createdAt: { $gte: from, $lte: to } };
+
+      const filterPrevious = tenantId 
+        ? { ...roleFilter, tenantId, createdAt: { $gte: previousFrom, $lt: from } }
+        : { ...roleFilter, createdAt: { $gte: previousFrom, $lt: from } };
+
+      const [current, previous] = await Promise.all([
+        this.userModel.countDocuments(filterCurrent),
+        this.userModel.countDocuments(filterPrevious),
+      ]);
+
+      return {
+        current,
+        previous,
+      };
+    } catch (error: any) {
+      this.logger.error(`Error obteniendo estadísticas de usuarios: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Opciones de populate para rellenar la propiedad role.
    * Centraliza la configuración de populate en un solo lugar.
    */

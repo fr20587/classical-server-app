@@ -239,6 +239,45 @@ export class CardsRepository implements ICardPort {
   }
 
   /**
+   * Obtiene estadísticas de tarjetas agrupadas por tipo y estado
+   * Retorna array con cardType, status y count
+   */
+  async getCardStatsByTypeAndStatus(): Promise<
+    Array<{ cardType: string; status: string; count: number }>
+  > {
+    try {
+      const pipeline = [
+        {
+          $group: {
+            _id: {
+              cardType: '$cardType',
+              status: '$status',
+            },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            cardType: '$_id.cardType',
+            status: '$_id.status',
+            count: '$count',
+            _id: 0,
+          },
+        },
+        {
+          $sort: { cardType: 1, status: 1 },
+        },
+      ] as any[];
+
+      const results = await this.cardModel.aggregate(pipeline);
+      return results;
+    } catch (error: any) {
+      this.logger.error(`Error obteniendo estadísticas de tarjetas: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Eliminar una tarjeta
    */
   async delete(cardId: string): Promise<void> {

@@ -20,6 +20,7 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 
 import { TransactionService } from '../../application/services/transaction.service';
 import { TransactionQueryService } from '../../application/services/transaction-query.service';
+import { DashboardService } from '../../application/services/dashboard.service';
 
 import {
   CreateTransactionDto,
@@ -27,6 +28,8 @@ import {
   CreateTransactionResponseDto,
   TransactionPaginatedResponseDto,
 } from '../../dto/transactions.dto';
+
+import { DashboardStatsQueryDto, DashboardStatsResponseDto } from '../../dto/dashboard.dto';
 
 import { Transaction, TransactionStatus } from '../../domain/entities/transaction.entity';
 import { ApiResponse } from 'src/common/types';
@@ -53,6 +56,7 @@ export class TransactionsController {
   constructor(
     private readonly transactionService: TransactionService,
     private readonly transactionQueryService: TransactionQueryService,
+    private readonly dashboardService: DashboardService,
   ) { }
 
   /**
@@ -123,6 +127,61 @@ export class TransactionsController {
     @Body() dto: ConfirmTransactionDto,
   ): Promise<Response> {
     const response = await this.transactionService.confirm(dto);
+    return res.status(response.statusCode).json(response);
+  }
+
+  /**
+   * Obtiene estadísticas del dashboard
+   * GET /transactions/dashboard/statistics?dateFrom=...&dateTo=...&tenantId=...
+   * Response: Estadísticas agregadas
+   */
+  @Get('dashboard/statistics')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Obtener estadísticas del dashboard',
+    description:
+      'Obtiene estadísticas agregadas de transacciones, clientes, tarjetas y tendencias para un rango de fechas. ' +
+      'Admins ven datos globales. Tenants admin ven datos de su tenant.',
+  })
+  @ApiQuery({
+    name: 'from',
+    required: true,
+    type: String,
+    description: 'Fecha inicial del rango (ISO 8601)',
+    example: '2026-02-01T00:00:00Z',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: true,
+    type: String,
+    description: 'Fecha final del rango (ISO 8601)',
+    example: '2026-02-12T23:59:59Z',
+  })
+  @ApiQuery({
+    name: 'tenantId',
+    required: false,
+    type: String,
+    description: 'ID del tenant (solo para admins, si se omite retorna datos globales)',
+    example: 'tenant-uuid',
+  })
+  @ApiOkResponse({
+    description: 'Estadísticas obtenidas exitosamente',
+    type: DashboardStatsResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Fechas inválidas o rango incorrecto',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'No autorizado',
+  })
+  @ApiForbiddenResponse({
+    description: 'Sin permisos para acceder a estadísticas',
+  })
+  async getStatistics(
+    @Res() res: Response,
+    @Query() query: DashboardStatsQueryDto,
+  ): Promise<Response> {
+    const response = await this.dashboardService.getStatistics(query);
     return res.status(response.statusCode).json(response);
   }
 

@@ -308,6 +308,39 @@ export class TenantsRepository implements ITenantPort {
   }
 
   /**
+   * Obtiene estadísticas de tenants activos en un rango de fechas
+   * Retorna conteo actual y conteo del período anterior de igual duración
+   */
+  async getActiveTenantStats(
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<{ current: number; previous: number }> {
+    try {
+      const from = new Date(dateFrom);
+      const to = new Date(dateTo);
+      const rangeDuration = to.getTime() - from.getTime();
+      const previousFrom = new Date(from.getTime() - rangeDuration);
+
+      const [current, previous] = await Promise.all([
+        this.tenantModel.countDocuments({
+          createdAt: { $gte: from, $lte: to },
+        }),
+        this.tenantModel.countDocuments({
+          createdAt: { $gte: previousFrom, $lt: from },
+        }),
+      ]);
+
+      return {
+        current,
+        previous,
+      };
+    } catch (error: any) {
+      this.logger.error(`Error obteniendo estadísticas de tenants: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Eliminar un tenant (soft delete si aplica)
    */
   async delete(tenantId: string): Promise<void> {

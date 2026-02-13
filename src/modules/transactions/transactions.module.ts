@@ -18,6 +18,7 @@ import { TransactionExpirationTask } from './infrastructure/tasks/transaction-ex
 import { AsyncContextService } from 'src/common/context';
 import { TransactionService } from './application/services/transaction.service';
 import { TransactionQueryService } from './application/services/transaction-query.service';
+import { DashboardService } from './application/services/dashboard.service';
 import { TenantWebhookDispatcher } from './application/services/tenant-webhook.dispatcher';
 
 // Ports
@@ -64,11 +65,13 @@ import { CardsModule } from '../cards/cards.module';
         // Services
         TransactionService,
         TransactionQueryService,
+        DashboardService,
         TenantWebhookDispatcher,
 
         // Tasks
         TransactionExpirationTask,
     ],
-    exports: [TransactionService, TransactionQueryService],
+    exports: [TransactionService, TransactionQueryService, DashboardService],
 })
 export class TransactionsModule { }
+

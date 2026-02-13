@@ -316,6 +316,349 @@ export class TransactionsRepository implements ITransactionsRepository {
   }
 
   /**
+   * Obtiene estadísticas de volumen de transacciones para un rango de fechas
+   * Retorna suma actual y suma del período anterior de igual duración
+   */
+  async getTransactionVolumeStats(
+    dateFrom: string,
+    dateTo: string,
+    tenantId?: string,
+  ): Promise<{ current: number; previous: number }> {
+    try {
+      const from = new Date(dateFrom);
+      const to = new Date(dateTo);
+      const rangeDuration = to.getTime() - from.getTime();
+      const previousFrom = new Date(from.getTime() - rangeDuration);
+
+      const filter = tenantId ? { tenantId } : {};
+
+      const [current, previous] = await Promise.all([
+        this.transactionModel.aggregate([
+          {
+            $match: {
+              ...filter,
+              createdAt: { $gte: from, $lte: to },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$amount' },
+            },
+          },
+        ]),
+        this.transactionModel.aggregate([
+          {
+            $match: {
+              ...filter,
+              createdAt: { $gte: previousFrom, $lt: from },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$amount' },
+            },
+          },
+        ]),
+      ]);
+
+      return {
+        current: current[0]?.total ?? 0,
+        previous: previous[0]?.total ?? 0,
+      };
+    } catch (error: any) {
+      this.logger.error(`Error obteniendo estadísticas de volumen: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene estadísticas de conteo de transacciones para un rango de fechas
+   * Retorna conteo actual y conteo del período anterior de igual duración
+   */
+  async getTransactionCountStats(
+    dateFrom: string,
+    dateTo: string,
+    tenantId?: string,
+  ): Promise<{ current: number; previous: number }> {
+    try {
+      const from = new Date(dateFrom);
+      const to = new Date(dateTo);
+      const rangeDuration = to.getTime() - from.getTime();
+      const previousFrom = new Date(from.getTime() - rangeDuration);
+
+      const filter = tenantId ? { tenantId } : {};
+
+      const [current, previous] = await Promise.all([
+        this.transactionModel.countDocuments({
+          ...filter,
+          createdAt: { $gte: from, $lte: to },
+        }),
+        this.transactionModel.countDocuments({
+          ...filter,
+          createdAt: { $gte: previousFrom, $lt: from },
+        }),
+      ]);
+
+      return {
+        current,
+        previous,
+      };
+    } catch (error: any) {
+      this.logger.error(`Error obteniendo estadísticas de conteo: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene tendencias diarias por día de la semana
+   * Agrupa transacciones exitosas (no CANCELLED, no EXPIRED) y fallidas
+   */
+  async getDailyTrendByDayOfWeek(
+    dateFrom: string,
+    dateTo: string,
+    tenantId?: string,
+  ): Promise<
+    Array<{
+      dayOfWeek: number;
+      dayOfWeekName: string;
+      successfulCount: number;
+      failedCount: number;
+      successfulAmount: number;
+      failedAmount: number;
+    }>
+  > {
+    try {
+      const from = new Date(dateFrom);
+      const to = new Date(dateTo);
+      const filter = tenantId ? { tenantId } : {};
+
+      const pipeline = [
+        {
+          $match: {
+            ...filter,
+            createdAt: { $gte: from, $lte: to },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              dayOfWeek: { $dayOfWeek: '$createdAt' },
+              status: '$status',
+            },
+            count: { $sum: 1 },
+            totalAmount: { $sum: '$amount' },
+          },
+        },
+        {
+          $group: {
+            _id: '$_id.dayOfWeek',
+            statusMetrics: {
+              $push: {
+                status: '$_id.status',
+                count: '$count',
+                amount: '$totalAmount',
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            dayOfWeek: '$_id',
+            successfulCount: {
+              $sum: {
+                $sum: [
+                  {
+                    $sum: {
+                      $map: {
+                        input: '$statusMetrics',
+                        as: 'metric',
+                        in: {
+                          $cond: [
+                            {
+                              $and: [
+                                { $ne: ['$$metric.status', 'cancelled'] },
+                                { $ne: ['$$metric.status', 'expired'] },
+                              ],
+                            },
+                            '$$metric.count',
+                            0,
+                          ],
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+            failedCount: {
+              $sum: {
+                $sum: {
+                  $map: {
+                    input: '$statusMetrics',
+                    as: 'metric',
+                    in: {
+                      $cond: [
+                        {
+                          $or: [
+                            { $eq: ['$$metric.status', 'cancelled'] },
+                            { $eq: ['$$metric.status', 'expired'] },
+                          ],
+                        },
+                        '$$metric.count',
+                        0,
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+            successfulAmount: {
+              $sum: {
+                $sum: {
+                  $map: {
+                    input: '$statusMetrics',
+                    as: 'metric',
+                    in: {
+                      $cond: [
+                        {
+                          $and: [
+                            { $ne: ['$$metric.status', 'cancelled'] },
+                            { $ne: ['$$metric.status', 'expired'] },
+                          ],
+                        },
+                        '$$metric.amount',
+                        0,
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+            failedAmount: {
+              $sum: {
+                $sum: {
+                  $map: {
+                    input: '$statusMetrics',
+                    as: 'metric',
+                    in: {
+                      $cond: [
+                        {
+                          $or: [
+                            { $eq: ['$$metric.status', 'cancelled'] },
+                            { $eq: ['$$metric.status', 'expired'] },
+                          ],
+                        },
+                        '$$metric.amount',
+                        0,
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        {
+          $sort: { dayOfWeek: 1 },
+        },
+      ] as any[];
+
+      const results = await this.transactionModel.aggregate(pipeline);
+
+      const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+      return results.map((doc: any) => ({
+        dayOfWeek: doc.dayOfWeek,
+        dayOfWeekName: daysOfWeek[doc.dayOfWeek - 1] || 'Unknown',
+        successfulCount: doc.successfulCount || 0,
+        failedCount: doc.failedCount || 0,
+        successfulAmount: doc.successfulAmount || 0,
+        failedAmount: doc.failedAmount || 0,
+      }));
+    } catch (error: any) {
+      this.logger.error(`Error obteniendo tendencias diarias: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene distribución de transacciones por estado con porcentajes
+   */
+  async getStatusDistribution(
+    dateFrom: string,
+    dateTo: string,
+    tenantId?: string,
+  ): Promise<Array<{ status: string; count: number; percentage: number }>> {
+    try {
+      const from = new Date(dateFrom);
+      const to = new Date(dateTo);
+      const filter = tenantId ? { tenantId } : {};
+
+      const pipeline = [
+        {
+          $match: {
+            ...filter,
+            createdAt: { $gte: from, $lte: to },
+          },
+        },
+        {
+          $facet: {
+            byStatus: [
+              {
+                $group: {
+                  _id: '$status',
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+            total: [
+              {
+                $count: 'total',
+              },
+            ],
+          },
+        },
+      ];
+
+      const results = await this.transactionModel.aggregate(pipeline);
+      const { byStatus, total } = results[0];
+      const totalCount = total[0]?.total ?? 0;
+
+      return byStatus.map((doc: any) => ({
+        status: doc._id,
+        count: doc.count,
+        percentage: totalCount > 0 ? (doc.count / totalCount) * 100 : 0,
+      }));
+    } catch (error: any) {
+      this.logger.error(`Error obteniendo distribución por estado: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene las últimas N transacciones más recientes
+   */
+  async getRecentTransactions(limit: number = 10, tenantId?: string): Promise<Transaction[]> {
+    try {
+      const filter = tenantId ? { tenantId } : {};
+
+      const documents = await this.transactionModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean()
+        .exec();
+
+      return documents.map((doc) => this.mapToDomain(doc));
+    } catch (error: any) {
+      this.logger.error(`Error obteniendo transacciones recientes: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Mapea documento de MongoDB a entidad de dominio
    */
   private mapToDomain(document: any): Transaction {
