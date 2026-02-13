@@ -1,4 +1,4 @@
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 import {
   Controller,
@@ -12,6 +12,7 @@ import {
   Logger,
   UseGuards,
   Res,
+  Req,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiBearerAuth, ApiSecurity, ApiHeader, ApiBadRequestResponse, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiOperation, ApiUnauthorizedResponse, ApiOkResponse, ApiAcceptedResponse, ApiQuery, ApiNotFoundResponse } from '@nestjs/swagger';
@@ -46,6 +47,10 @@ import type { QueryParams, SortOrder } from 'src/common/types';
 @ApiHeader({
   name: 'x-api-key',
   required: true,
+})
+@ApiHeader({
+  name: 'x-context-app',
+  required: false,
 })
 @UseGuards(JwtAuthGuard)
 @Controller('transactions')
@@ -283,6 +288,7 @@ export class TransactionsController {
   })
   async list(
     @Res() res: Response,
+    @Req() req: Request,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('search') search?: string,
@@ -302,7 +308,10 @@ export class TransactionsController {
       },
     };
 
-    const response = await this.transactionQueryService.list(queryParams);
+    // Obtener la app desde el header x-context-app para aplicar lógica de filtrado por rol
+    const contextApp = req.header('x-context-app');
+
+    const response = await this.transactionQueryService.list(queryParams, contextApp);
     return res.status(response.statusCode).json(response);
   }
 

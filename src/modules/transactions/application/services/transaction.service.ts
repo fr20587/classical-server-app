@@ -177,7 +177,7 @@ export class TransactionService {
           intentId: created.intentId,
           ref: created.ref,
           no: created.no,
-          amount: created.amount,
+          amount: created.amount * 100,
           tenantName: created.tenantName,
           expiresAt: created.expiresAt,
           emvco,

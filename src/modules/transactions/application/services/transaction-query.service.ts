@@ -30,7 +30,7 @@ export class TransactionQueryService {
    * - merchant: filtrar por tenantId
    * - otros roles: permitir query params (tenantId, customerId, etc)
    */
-  async list(queryParams: QueryParams): Promise<ApiResponse<Transaction[]>> {
+  async list(queryParams: QueryParams, contextApp?: string): Promise<ApiResponse<Transaction[]>> {
     const requestId = this.asyncContextService.getRequestId();
     const userId = this.asyncContextService.getActorId();
     const actor = this.asyncContextService.getActor()!;
@@ -67,6 +67,7 @@ export class TransactionQueryService {
       const { data: transactions, total, meta } = await this.transactionsRepository.findAll(
         mongoFilter,
         options,
+        contextApp,
       );
 
       const limit = options.limit;

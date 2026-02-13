@@ -425,9 +425,23 @@ export class CardsService {
       balance: card.balance,
       status: card.status,
       createdAt: card.createdAt,
-      lastTransactions: card.lastTransactions,
+      lastTransactions: card.lastTransactions
+        ? this.convertTransactionsAmounts(card.lastTransactions)
+        : undefined,
       ticketReference: card.ticketReference,
       customer: card.customer,
     };
+  }
+
+  /**
+   * Convert transaction amounts from centavos to pesos (multiply by 0.01)
+   * @param transactions Array of transactions with amounts in centavos
+   * @returns Array of transactions with amounts in pesos
+   */
+  private convertTransactionsAmounts(transactions: any[]): any[] {
+    return transactions.map((transaction) => ({
+      ...transaction,
+      amount: transaction.amount * 0.01,
+    }));
   }
 }

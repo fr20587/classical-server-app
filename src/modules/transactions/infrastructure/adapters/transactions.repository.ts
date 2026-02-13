@@ -177,6 +177,7 @@ export class TransactionsRepository implements ITransactionsRepository {
       limit: number;
       sort?: Record<string, number>;
     },
+    contextApp?: string
   ): Promise<{
     data: Transaction[];
     total: number,
@@ -197,11 +198,15 @@ export class TransactionsRepository implements ITransactionsRepository {
       const isMerchant = user!.roleKey === 'merchant' || user!.additionalRoleKeys?.includes('merchant');
 
       // Definir filtro de tenant si el usuario es un merchant
-      if (isMerchant) {
+      if (isMerchant && contextApp !== 'user-app') {
         const tenantId = user!.tenantId!;
         filter.tenantId = tenantId;
         this.logger.log(`User ${userId} is a merchant, applying tenant filter: ${tenantId}`);
+      } else if (contextApp === 'user-app') {
+        filter.customerId = userId;
       }
+
+      console.log({ filter })
 
       // Ejecutar query en paralelo: obtener documentos y contar total
       const [transactions, total] = await Promise.all([
@@ -250,7 +255,7 @@ export class TransactionsRepository implements ITransactionsRepository {
       );
 
       return {
-        data: transactions as unknown as Transaction[],
+        data: transactions.map((doc) => this.mapToDomain(doc)),
         total,
         meta: {
           cards,
