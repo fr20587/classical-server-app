@@ -7,6 +7,7 @@ import {
   BadRequestException,
   Res,
   UseGuards,
+  Get,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -44,6 +45,8 @@ import { MerchantRegistrationDto } from '../../dto/merchant-registration.dto';
 import { ServiceLoginDto } from '../../dto/service-login.dto';
 
 import { ApiKeyGuard } from '../../guards/api-key.guard';
+import { CsrfService } from '../../../csrf/csrf.service';
+import { getCookieConfig } from 'src/config/cookie.config';
 
 @ApiTags('Auth')
 @ApiHeader({
@@ -54,7 +57,10 @@ import { ApiKeyGuard } from '../../guards/api-key.guard';
 @UseGuards(ApiKeyGuard)
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly csrfService: CsrfService,
+  ) { }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -80,7 +86,19 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const response = await this.authService.login(loginDto);
+    const response = await this.authService.login(loginDto, res);
+    
+    // Generar nuevo CSRF token después del login
+    if (response.statusCode === HttpStatus.OK) {
+      try {
+        const newCsrfToken = await this.csrfService.generateToken();
+        const cookieConfig = getCookieConfig();
+        res.cookie('XSRF-TOKEN', newCsrfToken, cookieConfig.csrf_token);
+      } catch (error) {
+        console.error('Error generating CSRF token after login:', error);
+      }
+    }
+    
     return res.status(response.statusCode).json(response);
   }
 
@@ -119,10 +137,13 @@ export class AuthController {
     @Body('refresh_token') refreshToken: string,
     @Res() res: Response,
   ): Promise<Response> {
-    if (!refreshToken) {
+    // Priorizar refresh_token de cookie sobre body (para web clients)
+    const token = res.req.cookies?.refresh_token || refreshToken;
+    
+    if (!token) {
       throw new BadRequestException('refresh_token is required');
     }
-    const response = await this.authService.refreshToken(refreshToken);
+    const response = await this.authService.refreshToken(token, res);
     return res.status(response.statusCode).json(response);
   }
 
@@ -330,5 +351,26 @@ export class AuthController {
   ): Promise<Response> {
     const response = await this.authService.serviceLogin(serviceLoginDto);
     return res.status(response.statusCode).json(response);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Cerrar sesión',
+    description: 'Limpia las cookies de autenticación y finaliza la sesión',
+  })
+  @ApiOkResponse({
+    description: 'Sesión cerrada exitosamente',
+  })
+  async logout(@Res() res: Response): Promise<Response> {
+    // Limpiar cookies
+    res.clearCookie('access_token', { path: '/' });
+    res.clearCookie('refresh_token', { path: '/auth/refresh' });
+    res.clearCookie('XSRF-TOKEN', { path: '/' });
+
+    return res.json({
+      success: true,
+      message: 'Logout exitoso',
+    });
   }
 }

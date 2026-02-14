@@ -1,10 +1,11 @@
 // Nest Modules
 import { MiddlewareConsumer, Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { MongooseModule } from '@nestjs/mongoose';
+import cookieParser from 'cookie-parser';
 
 import fs from 'fs';
 import dotenv from 'dotenv';
@@ -14,7 +15,11 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BootstrapModule } from './common/bootstrap/bootstrap.module';
 import { CardsModule } from './modules/cards/cards.module';
+import { CommonModule } from './common/common.module';
+import { CsrfModule } from './modules/csrf/csrf.module';
 import { ModulesModule } from './modules/modules';
+import { PermissionsModule } from './modules/permissions/permissions.module';
+import { RolesModule } from './modules/roles/roles.module';
 import { SharedContextModule } from './shared/shared-context.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
@@ -38,14 +43,14 @@ import {
 // Interceptors
 import { AuthenticationInterceptor } from './common/interceptors/authentication.interceptor';
 
+// Guards
+import { CsrfGuard } from './modules/csrf/guards/csrf.guard';
+
 // Config Schema
 import { configValidationSchema } from './config/config.schema';
 
 // Constants
 import { INJECTION_TOKENS } from './common/constants/injection-tokens';
-import { CommonModule } from './common/common.module';
-import { PermissionsModule } from './modules/permissions/permissions.module';
-import { RolesModule } from './modules/roles/roles.module';
 
 @Module({
   imports: [
@@ -61,6 +66,7 @@ import { RolesModule } from './modules/roles/roles.module';
     AuthModule,
     CardsModule,
     CommonModule,
+    CsrfModule,
     // KeysModule,
     ModulesModule,
     PermissionsModule,
@@ -105,6 +111,11 @@ import { RolesModule } from './modules/roles/roles.module';
       provide: APP_INTERCEPTOR,
       useClass: AuthenticationInterceptor,
     },
+    // Global guard para protección CSRF
+    {
+      provide: APP_GUARD,
+      useClass: CsrfGuard,
+    },
     // Services
     AsyncContextService,
     {
@@ -116,7 +127,12 @@ import { RolesModule } from './modules/roles/roles.module';
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
-    // Aplicar LoggingMiddleware PRIMERO a TODAS las rutas
+    // PRIMERO: Cookie parser DEBE ser el primer middleware
+    // para que las cookies estén disponibles en request
+    const cookieSecret = process.env.COOKIE_SECRET || 'dev-cookie-secret';
+    consumer.apply(cookieParser(cookieSecret)).forRoutes('*');
+
+    // Aplicar LoggingMiddleware a TODAS las rutas
     consumer.apply(LoggingMiddleware).forRoutes('*');
 
     // Aplicar RequestIdMiddleware a TODAS las rutas

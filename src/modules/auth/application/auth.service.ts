@@ -6,6 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Response } from 'express';
 
 import { AsyncContextService } from 'src/common/context/async-context.service';
 import { AuditService } from '../../audit/application/audit.service';
@@ -43,6 +44,7 @@ import { CardsService } from 'src/modules/cards/application/cards.service';
 import { PermissionsService } from '../../permissions/application/permissions.service';
 import { TenantsRepository } from 'src/modules/tenants/infrastructure/adapters/tenant.repository';
 import { TenantVaultService } from 'src/modules/tenants/infrastructure/services/tenant-vault.service';
+import { getCookieConfig } from 'src/config/cookie.config';
 
 interface ValidationResponse {
   valid: boolean;
@@ -80,8 +82,9 @@ export class AuthService {
   /**
    * Iniciar sesión
    * @param loginDto
+   * @param res - Objeto Response de Express para establecer cookies (opcional)
    */
-  async login(loginDto: LoginDto): Promise<ApiResponse<LoginResponseDto>> {
+  async login(loginDto: LoginDto, res?: Response): Promise<ApiResponse<LoginResponseDto>> {
     const { username, password } = loginDto;
     const requestId = this.asyncContext.getRequestId();
 
@@ -235,6 +238,31 @@ export class AuthService {
       // Obterner tarjetas del usuario
       const cardsData = await this.cardsService.listCardsForUser(validation.user!.id);
 
+      // Si se proporciona response, establecer cookies HttpOnly (web clients)
+      if (res) {
+        const cookieConfig = getCookieConfig();
+        res.cookie('access_token', accessResult.getValue(), cookieConfig.access_token);
+        if (refreshToken) {
+          res.cookie('refresh_token', refreshToken, cookieConfig.refresh_token);
+        }
+
+        // NO incluir tokens en el response body para web clients
+        return ApiResponse.ok<LoginResponseDto>(
+          HttpStatus.OK,
+          {
+            token_type: 'Bearer',
+            expires_in: 3600,
+          } as LoginResponseDto,
+          'Login exitoso',
+          {
+            requestId,
+            user: validation.user,
+            cards: cardsData.data
+          },
+        );
+      }
+
+      // Para mobile/API clients (sin response), enviar tokens en body
       return ApiResponse.ok<LoginResponseDto>(
         HttpStatus.OK,
         {
@@ -284,6 +312,7 @@ export class AuthService {
    */
   async refreshToken(
     refreshToken: string,
+    res?: Response,
   ): Promise<ApiResponse<LoginResponseDto>> {
     const requestId = this.asyncContext.getRequestId();
 
@@ -447,6 +476,24 @@ export class AuthService {
         newAccessToken,
       );
 
+      // Si se proporciona response, establecer cookie HttpOnly (web clients)
+      if (res) {
+        const cookieConfig = getCookieConfig();
+        res.cookie('access_token', newAccessToken, cookieConfig.access_token);
+
+        // NO incluir token en el response body para web clients
+        return ApiResponse.ok<LoginResponseDto>(
+          HttpStatus.OK,
+          {
+            token_type: 'Bearer',
+            expires_in: 3600,
+          } as LoginResponseDto,
+          'Token refreshed successfully',
+          { requestId },
+        );
+      }
+
+      // Para mobile/API clients, enviar token en body
       return ApiResponse.ok<LoginResponseDto>(
         HttpStatus.OK,
         {

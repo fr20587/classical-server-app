@@ -2,7 +2,7 @@
 
 ## Overview
 
-El módulo de **Tenants** gestiona los negocios (empresas) que se registran en la plataforma FxWallet. Incluye:
+El módulo de **Tenants** gestiona los negocios (empresas) que se registran en la plataforma Classical. Incluye:
 
 - **CRUD de Tenants**: Crear, leer, actualizar tenants
 - **Máquina de Estados**: Ciclo de vida de aprobación (pending_review → more_data_requested/approved/rejected → active)

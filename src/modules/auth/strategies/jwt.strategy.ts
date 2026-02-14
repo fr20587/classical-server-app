@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
+import { Request } from 'express';
 
 import { ExtractJwt, Strategy, StrategyOptionsWithRequest } from 'passport-jwt';
 import * as jwt from 'jsonwebtoken';
@@ -9,17 +10,40 @@ import type { IJwksPort } from '../domain/ports/jwks.port';
 import { Actor, parseSubject } from 'src/common/interfaces';
 
 /**
+ * Extrae JWT de cookies (prioridad) o Authorization header (fallback)
+ * Esto permite compatibilidad con web clients (cookies) y mobile clients (header)
+ */
+function extractJwtFromCookieOrHeader(req: any): string | null {
+  // 1. Intenta extraer de cookie (web clients)
+  if (req.cookies && req.cookies.access_token) {
+    console.log('[JWT] Extrayendo token de cookie');
+    return req.cookies.access_token;
+  }
+  
+  // 2. Fallback a Authorization header (mobile/API clients)
+  const authHeader = req.headers && req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    console.log('[JWT] Extrayendo token de Authorization header');
+    return authHeader.substring(7);
+  }
+  
+  console.log('[JWT] No se encontró token en cookie ni en header');
+  return null;
+}
+
+/**
  * Estrategia JWT para autenticación con RS256 + JWKS.
  * - Valida firma con clave pública de JWKS.
  * - Valida claims (sub, exp, iat, aud, iss, jti).
  * - Integra anti-replay y rotación de kid.
  * - Fail-closed: rechaza cualquier token inválido.
+ * - Soporta extracción dual: cookies (web) y Authorization header (mobile)
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(@Inject('IJwksPort') private readonly jwksPort: IJwksPort) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: extractJwtFromCookieOrHeader,
       ignoreExpiration: false,
       passReqToCallback: true,
       // secretOrKeyProvider: obtener la clave pública para validar firma.

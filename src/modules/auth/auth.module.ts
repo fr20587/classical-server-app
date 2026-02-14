@@ -7,6 +7,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AuditModule } from '../audit/audit.module';
 import { CachingModule } from 'src/common/cache/cache.module';
 import { CardsModule } from 'src/modules/cards/cards.module';
+import { CsrfModule } from '../csrf/csrf.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { UsersModule } from '../users/users.module';
 import { VaultModule } from '../vault/vault.module';
@@ -52,6 +53,7 @@ import { SessionExpirationScheduler } from './infrastructure/schedulers/session-
     EventEmitter2,
     CachingModule,
     CardsModule,
+    CsrfModule,
     PassportModule,
     UsersModule,
     VaultModule,

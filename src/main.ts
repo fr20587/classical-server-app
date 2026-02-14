@@ -1,4 +1,5 @@
 import { json, urlencoded } from 'express';
+import cookieParser from 'cookie-parser';
 
 // Nest Modules
 import { Logger, ValidationPipe, RequestMethod } from '@nestjs/common';
@@ -71,8 +72,14 @@ async function bootstrap() {
     bufferLogs: true,
   });
 
-  // Cors
-  app.enableCors();
+  // Cors - Configurado con credentials para cookies
+  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:4200';
+  app.enableCors({
+    origin: corsOrigin.split(','), // Soporta múltiples orígenes separados por coma
+    credentials: true, // Permitir envío de cookies
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-csrf-token', 'x-xsrf-token'],
+  });
 
   // Global configuration
   app.setGlobalPrefix('api_053', {
@@ -102,6 +109,10 @@ async function bootstrap() {
   const eventEmitter = app.get(EventEmitter2);
 
   app.useGlobalInterceptors(new AuditInterceptor(asyncContext, eventEmitter));
+
+  // Cookie parser - YA ESTÁ CONFIGURADO EN app.module.ts configure()
+  // const cookieSecret = process.env.COOKIE_SECRET || 'dev-cookie-secret';
+  // app.use(cookieParser(cookieSecret));
 
   // Securities modules
   app.use(helmet());

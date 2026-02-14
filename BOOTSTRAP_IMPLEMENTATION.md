@@ -158,7 +158,7 @@ Aplicación lista (sin datos duplicados)
 Para que el bootstrap cree el super_admin:
 
 ```env
-SA_EMAIL=superadmin@fxwallet.local
+SA_EMAIL=superadmin@classical.local
 SA_PWD=YourSecurePassword123!
 ```
 
