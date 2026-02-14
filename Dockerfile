@@ -2,7 +2,7 @@
 #  STAGE 1: Build the Project
 #--------------------------------------------------------------------------------------------------
 
-FROM node:22.15-alpine3.21 AS builder
+FROM node:24-alpine AS builder
 
 # Establecer el directorio de trabajo
 WORKDIR /usr/src/app
@@ -33,7 +33,7 @@ RUN yarn install --production --frozen-lockfile && yarn cache clean
 #  STAGE 2: Configurar la imagen para producción
 #--------------------------------------------------------------------------------------------------
 
-FROM node:22.15-alpine3.21
+FROM node:24-alpine
 
 # Establecer el directorio de trabajo
 WORKDIR /usr/src/app
