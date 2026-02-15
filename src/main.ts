@@ -74,11 +74,20 @@ async function bootstrap() {
 
   // Cors - Configurado con credentials para cookies
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:4200';
+
+  // Debug: Ver exactamente qué orígenes se están configurando
+  const allowedOrigins = corsOrigin
+    .split(',')
+    .map((origin) => origin.trim());
+
+  console.log('CORS Origins configurados:', allowedOrigins); // ← Para debugging
+
   app.enableCors({
-    origin: corsOrigin.split(','), // Soporta múltiples orígenes separados por coma
-    credentials: true, // Permitir envío de cookies
+    origin: allowedOrigins,
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-csrf-token', 'x-xsrf-token'],
+    optionsSuccessStatus: 200, // ← Importante para algunos clientes
   });
 
   // Global configuration
