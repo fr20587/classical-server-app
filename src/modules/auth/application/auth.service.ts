@@ -89,25 +89,12 @@ export class AuthService {
     const requestId = this.asyncContext.getRequestId();
 
     try {
-      console.log(`\n🔐🔐🔐 LOGIN DEBUG START 🔐🔐🔐`);
-      console.log(`Request ID: ${requestId}`);
-      console.log(`Username: '${username}'`);
-      console.log(`Password: '${password}'`);
-      console.log(`Username type: ${typeof username}, length: ${username?.length}`);
-      console.log(`Password type: ${typeof password}, length: ${password?.length}`);
-      
-      this.logger.log(`[Login] ========== LOGIN ATTEMPT ==========`);
-      this.logger.log(`[Login] Request ID: ${requestId}`);
-      this.logger.log(`[Login] Username received: '${username}'`);
-      this.logger.log(`[Login] Password received: '${password}' (length: ${password?.length})`);
 
-      console.log(`About to call validateCredentials...`);
       const validation: ValidationResponse = await this.validateCredentials(
         username,
         password,
       );
 
-      console.log(`validateCredentials returned:`, validation);
       this.logger.log(`[Login] Validation result: ${JSON.stringify(validation)}`);
 
       if (!validation.valid) {
@@ -131,7 +118,7 @@ export class AuthService {
             HttpStatus.UNAUTHORIZED,
             'Teléfono no confirmado',
             'Por favor confirme su teléfono antes de continuar',
-            { requestId },
+            { requestId, phoneConfirmation: 'PENDING' },
           );
         }
 

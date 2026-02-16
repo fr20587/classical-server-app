@@ -139,7 +139,6 @@ export class AuthController {
   ): Promise<Response> {
     // Priorizar refresh_token de cookie sobre body (para web clients)
     const token = res.req.cookies?.refresh_token || refreshToken;
-    console.log({ cookies: res.req.cookies });
     
     if (!token) {
       throw new BadRequestException('refresh_token is required');
