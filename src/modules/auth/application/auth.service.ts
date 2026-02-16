@@ -1594,111 +1594,59 @@ export class AuthService {
     user?: UserDTO;
     reason?: 'PHONE_NOT_CONFIRMED';
   }> {
-    this.logger.log(`[ValidateCredentials] ENTERING validateCredentials - username='${username}'`);
-    
     try {
-      this.logger.log(`[Login] === Starting credential validation ===`);
-      this.logger.log(`[Login] Username: '${username}' (length: ${username.length})`);
-      this.logger.log(`[Login] Password: '${password}' (length: ${password.length})`);
-      this.logger.log(`[Login] Password charCodes: ${password.split('').map(c => c.charCodeAt(0)).join(',')}`);
-
       let result;
 
       // Detectar si es email o teléfono
       const isEmail = username.includes('@');
 
       if (isEmail) {
-        // Buscar por email
-        this.logger.log(`[Login] Searching by EMAIL: ${username}`);
         result = await this.usersService.findByEmail(username);
       } else {
-        // Buscar por teléfono
-        this.logger.log(`[Login] Searching by PHONE: ${username}`);
         result = await this.usersService.findByPhone(username);
       }
 
       if (!result.ok) {
-        this.logger.warn(
-          `[Login] User search failed: ${username}`,
-        );
         return { valid: false };
       }
 
       const user = result.data;
 
       if (!user) {
-        this.logger.warn(`[Login] User not found: ${username}`);
         return { valid: false };
       }
 
-      this.logger.log(`[Login] User found: ${user.id}`);
-      this.logger.log(`[Login] User email: ${user.email}`);
-      this.logger.log(`[Login] User phone: ${user.phone}`);
-      this.logger.log(`[Login] User phoneConfirmed: ${user.phoneConfirmed}`);
-
       // Obtener documento raw para verificar contraseña
-      this.logger.log(`[Login] Fetching raw user document...`);
       const userRaw = await this.usersService.findByIdRaw(user.id);
 
       if (!userRaw) {
-        this.logger.warn(
-          `[Login] User document not found in database: ${user.id}`,
-        );
         return { valid: false };
       }
 
-      this.logger.log(`[Login] Raw user found in database`);
-      this.logger.log(`[Login] Raw user password hash exists: ${!!userRaw.passwordHash}`);
-      this.logger.log(`[Login] Raw user password hash length: ${userRaw.passwordHash?.length || 0}`);
-      this.logger.log(`[Login] Raw user password hash (first 50 chars): ${userRaw.passwordHash?.substring(0, 50) || 'null'}...`);
-
       // Verificar que el teléfono esté confirmado
       if (!userRaw.phoneConfirmed) {
-        this.logger.warn(
-          `[Login] Phone not confirmed for user: ${user.id}`,
-        );
         return { valid: false, reason: 'PHONE_NOT_CONFIRMED' };
       }
 
       // Si el usuario no tiene contraseña, rechazar
       if (!userRaw.passwordHash) {
-        this.logger.warn(
-          `[Login] User has no password hash: ${user.id}`,
-        );
         return { valid: false };
       }
 
       // Verificar contraseña contra hash
-      this.logger.log(`[Login] === Starting password verification ===`);
-      this.logger.log(`[Login] Password to verify: '${password}' (length: ${password.length})`);
-      this.logger.log(`[Login] Hash to verify against: '${userRaw.passwordHash.substring(0, 50)}...' (length: ${userRaw.passwordHash.length})`);
-
       const isPasswordValid = await this.usersService.verifyPassword(
         password,
         userRaw.passwordHash,
       );
 
-      this.logger.log(`[Login] Password verification result: ${isPasswordValid}`);
-
       if (!isPasswordValid) {
-        this.logger.warn(
-          `[Login] Password verification FAILED for user: ${username}`,
-        );
         return { valid: false };
       }
 
-      this.logger.log(
-        `[Login] ✅ Credentials validated successfully for user: ${user.id}`,
-      );
-
       return { valid: true, user };
     } catch (error: any) {
-      console.error(`🔴 ERROR IN validateCredentials:`, error);
-      console.error(`Error message: ${error?.message}`);
-      console.error(`Error stack: ${error?.stack}`);
-      
       this.logger.error(
-        `[Login] ❌ Error validating credentials for ${username}:`,
+        `Error validating credentials for ${username}:`,
         error instanceof Error ? error.stack : String(error),
       );
       return { valid: false };
