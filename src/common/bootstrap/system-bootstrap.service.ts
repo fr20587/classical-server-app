@@ -5,6 +5,7 @@ import { Model } from 'mongoose';
 
 import { SYSTEM_MODULES } from 'src/modules/modules/seeds/system-modules';
 import { SYSTEM_ROLES } from 'src/modules/roles/seeds/system-roles';
+import { UsersService } from 'src/modules/users/application/users.service';
 
 /**
  * SystemBootstrapService - Inicialización centralizada del sistema
@@ -28,6 +29,7 @@ export class SystemBootstrapService implements OnModuleInit {
     @InjectModel('Module') private moduleModel: Model<any>,
     @InjectModel('Role') private roleModel: Model<any>,
     @InjectModel('User') private userModel: Model<any>,
+    private usersService: UsersService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -184,10 +186,28 @@ export class SystemBootstrapService implements OnModuleInit {
         return;
       }
 
-      // NOTA: En una aplicación real, aquí iría la lógica de hashing de contraseña
-      // Por ahora, solo registramos que se iría a crear
+      // Hash de la contraseña usando el servicio de usuarios
+      const passwordHash = await this.usersService.hashPassword(saPwd);
+
+      // Crear el usuario super admin
+      const superAdminUser = await this.userModel.create({
+        email: saEmail,
+        fullname: 'System Administrator',
+        idNumber: '00000000000',
+        phone: '00000000', // Teléfono de sistema
+        phoneConfirmed: true, // Confirmado automáticamente
+        roleKey: 'super_admin',
+        passwordHash,
+        status: 'active',
+        isSystemAdmin: true,
+        metadata: {
+          source: 'system-bootstrap',
+          createdAt: new Date().toISOString(),
+        },
+      });
+
       this.logger.log(
-        `✅ PHASE 3 completed: Super admin user would be created (email: ${saEmail})`,
+        `✅ PHASE 3 completed: Super admin user created successfully (email: ${saEmail}, id: ${superAdminUser.id})`,
       );
     } catch (error: any) {
       this.logger.error(
