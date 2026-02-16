@@ -1594,6 +1594,8 @@ export class AuthService {
     user?: UserDTO;
     reason?: 'PHONE_NOT_CONFIRMED';
   }> {
+    this.logger.log(`[ValidateCredentials] ENTERING validateCredentials - username='${username}'`);
+    
     try {
       this.logger.log(`[Login] === Starting credential validation ===`);
       this.logger.log(`[Login] Username: '${username}' (length: ${username.length})`);
