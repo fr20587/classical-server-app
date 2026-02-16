@@ -1,14 +1,17 @@
 # Configuración de Cookies en el Cliente
 
 ## Problema
+
 Las cookies no se están enviando automáticamente en las siguientes peticiones después del login.
 
 ## Causa
+
 El cliente debe configurarse explícitamente para enviar cookies con todas las peticiones.
 
 ## Solución
 
 ### Para Fetch API
+
 ```javascript
 // ❌ INCORRECTO - Las cookies NO se envían
 fetch('http://localhost:9053/api_053/users/profile', {
@@ -29,6 +32,7 @@ fetch('http://localhost:9053/api_053/users/profile', {
 ```
 
 ### Para Axios (recomendado)
+
 ```javascript
 import axios from 'axios';
 
@@ -48,6 +52,7 @@ axiosInstance.get('/users/profile')
 ```
 
 ### Para Angular HttpClient
+
 ```typescript
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 
@@ -80,6 +85,7 @@ export class ApiService {
 ```
 
 ### Para React con Fetch
+
 ```javascript
 // Cliente HTTP con cookies habilitadas
 export const apiClient = {
@@ -144,6 +150,7 @@ function useProfile() {
 2. Realiza una petición (ej: GET a `/api_053/users/profile`)
 3. Haz click en la petición para ver los detalles
 4. En la pestaña "Request Headers", deberías ver:
+
    ```
    Cookie: access_token=...; refresh_token=...
    ```
@@ -166,9 +173,10 @@ NODE_ENV=development
 
 ## Notas sobre SameSite y Secure
 
-- **SameSite=lax**: Se usa en desarrollo local (http://localhost). Las cookies se envían en navegación del sitio.
+- **SameSite=lax**: Se usa en desarrollo local (<http://localhost>). Las cookies se envían en navegación del sitio.
 - **SameSite=none; Secure**: Se usa en producción HTTPS. Permite cross-origin si está configurado correctamente en CORS.
 
 La configuración actual:
+
 - Desarrollo: `sameSite: 'lax'`, `secure: false`
 - Producción: `sameSite: 'none'`, `secure: true`

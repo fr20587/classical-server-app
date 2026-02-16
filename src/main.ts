@@ -72,6 +72,11 @@ async function bootstrap() {
     bufferLogs: true,
   });
 
+  // ⭐ Habilitar 'trust proxy' para que Express confíe en los encabezados X-Forwarded-*
+  // Esto es necesario para que las cookies 'secure: true' funcionen correctamente tras un proxy (Nginx, Cloudflare)
+  const trustProxy = process.env.TRUST_PROXY || '1';
+  app.set('trust proxy', trustProxy === 'true' ? true : trustProxy);
+
   // Cors - Configurado con credentials para cookies
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:4200';
 
