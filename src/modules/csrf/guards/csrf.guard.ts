@@ -34,12 +34,12 @@ export class CsrfGuard implements CanActivate {
     private readonly asyncContextService: AsyncContextService,
     private readonly csrfService: CsrfService,
     private readonly reflector: Reflector,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const method = request.method;
-    
+
     // Permitir métodos seguros (GET, HEAD, OPTIONS)
     if (!this.protectedMethods.includes(method)) {
       return true;
@@ -60,7 +60,7 @@ export class CsrfGuard implements CanActivate {
     // Necesitamos: /auth/login
     const fullPath = request.path;
     let path = fullPath;
-    
+
     if (fullPath.startsWith('/api_053/')) {
       path = fullPath.substring(8); // '/api_053/' tiene 9 caracteres
     }
@@ -73,9 +73,11 @@ export class CsrfGuard implements CanActivate {
     // Extraer token CSRF del header
     const csrfTokenHeader =
       request.headers['x-csrf-token'] || request.headers['x-xsrf-token'];
+    console.log({ csrfTokenHeader })
 
     // Extraer token CSRF de la cookie
     const csrfTokenCookie = request.cookies?.['XSRF-TOKEN'];
+    console.log({ csrfTokenCookie })
 
     if (!csrfTokenHeader || !csrfTokenCookie) {
       throw new ForbiddenException('CSRF token is missing');
@@ -85,8 +87,6 @@ export class CsrfGuard implements CanActivate {
     if (csrfTokenHeader !== csrfTokenCookie) {
       throw new ForbiddenException('CSRF token mismatch');
     }
-
-    console.log({ csrfTokenHeader })
 
     // Validar token en cache
     const isValid = await this.csrfService.validateToken(
