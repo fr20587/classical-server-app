@@ -1,24 +1,23 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';
+
 import { randomUUID } from 'crypto';
+import { CacheService } from 'src/common/cache/cache.service';
 
 @Injectable()
 export class CsrfService {
   private readonly CSRF_PREFIX = 'csrf:';
-  private readonly CSRF_TTL = 3600; // 1 hora en segundos
+  private readonly CSRF_TTL = 86400; // 1 día en segundos
 
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+  constructor(
+    private readonly cacheService: CacheService,
+  ) { }
 
   /**
    * Genera un nuevo token CSRF y lo almacena en cache
    */
   async generateToken(): Promise<string> {
     const token = randomUUID();
-    const key = this.CSRF_PREFIX + token;
-    
-    await this.cacheManager.set(key, true, this.CSRF_TTL * 1000);
-    
+    await this.cacheService.set(this.CSRF_PREFIX + token, true, this.CSRF_TTL);
     return token;
   }
 
@@ -31,8 +30,8 @@ export class CsrfService {
     }
 
     const key = this.CSRF_PREFIX + token;
-    const exists = await this.cacheManager.get(key);
-    
+    const exists = await this.cacheService.getByKey<boolean>(key);
+
     return !!exists;
   }
 
@@ -45,7 +44,7 @@ export class CsrfService {
     }
 
     const key = this.CSRF_PREFIX + token;
-    await this.cacheManager.del(key);
+    await this.cacheService.delete(key);
   }
 
   /**

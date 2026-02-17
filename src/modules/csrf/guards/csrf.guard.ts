@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { CsrfService } from '../csrf.service';
+import { AsyncContextService } from 'src/common/context';
 
 export const SKIP_CSRF = 'skipCsrf';
 export const SkipCsrf = () => SetMetadata(SKIP_CSRF, true);
@@ -30,6 +31,7 @@ export class CsrfGuard implements CanActivate {
   ];
 
   constructor(
+    private readonly asyncContextService: AsyncContextService,
     private readonly csrfService: CsrfService,
     private readonly reflector: Reflector,
   ) {}

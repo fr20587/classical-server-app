@@ -85,8 +85,6 @@ async function bootstrap() {
     .split(',')
     .map((origin) => origin.trim());
 
-  console.log('CORS Origins configurados:', allowedOrigins); // ← Para debugging
-
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
