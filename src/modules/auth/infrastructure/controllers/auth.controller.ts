@@ -89,15 +89,15 @@ export class AuthController {
     const response = await this.authService.login(loginDto, res);
     
     // Generar nuevo CSRF token después del login
-    if (response.statusCode === HttpStatus.OK) {
-      try {
-        const newCsrfToken = await this.csrfService.generateToken();
-        const cookieConfig = getCookieConfig();
-        res.cookie('XSRF-TOKEN', newCsrfToken, cookieConfig.csrf_token);
-      } catch (error) {
-        console.error('Error generating CSRF token after login:', error);
-      }
-    }
+    // if (response.statusCode === HttpStatus.OK) {
+    //   try {
+    //     const newCsrfToken = await this.csrfService.generateToken();
+    //     const cookieConfig = getCookieConfig();
+    //     res.cookie('XSRF-TOKEN', newCsrfToken, cookieConfig.csrf_token);
+    //   } catch (error) {
+    //     console.error('Error generating CSRF token after login:', error);
+    //   }
+    // }
     
     return res.status(response.statusCode).json(response);
   }
