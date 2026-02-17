@@ -17,6 +17,7 @@ export class CsrfService {
    */
   async generateToken(): Promise<string> {
     const token = randomUUID();
+    console.log('Generated CSRF token:', token);
     await this.cacheService.set(this.CSRF_PREFIX + token, true, this.CSRF_TTL * 1000);
     return token;
   }

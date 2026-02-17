@@ -41,6 +41,7 @@ export class CacheService implements ICacheService {
    * @returns una Promesa que se resuelve en void.
    */
   async set<T>(key: string, value: T, ttl: number = this.ttl): Promise<void> {
+    console.log(`Setting cache key: ${this.rootKey}:${key} with value: ${JSON.stringify(value)} and TTL: ${ttl} seconds`);
     // Set key on cache. if ttl is equal to 0, the key will never expire
     // Convertir ttl de segundos a millisegundos
     const ttlInMilliseconds = ttl === 0 ? 0 : ttl * 1000;
@@ -49,13 +50,15 @@ export class CacheService implements ICacheService {
       JSON.stringify(value),
       'PX',
       ttlInMilliseconds,
-    );
+    ).then(() => {
+      this.logger.debug(`Cache set successfully: ${this.rootKey}:${key}`);
+      // Poner log de comprobacion de que se guardo el valor
+      this.logger.debug(`Cache set: ${this.rootKey}:${key}:${value} with TTL: ${ttl} seconds`);
+  
+      const cachedValue = this._redisClient.get(`${this.rootKey}:${key}`);
+      this.logger.debug(`Cache get after set: ${this.rootKey}:${key}:${cachedValue}`);
+    });
 
-    // Poner log de comprobacion de que se guardo el valor
-    this.logger.debug(`Cache set: ${this.rootKey}:${key}:${value} with TTL: ${ttl} seconds`);
-
-    const cachedValue = await this._redisClient.get(`${this.rootKey}:${key}`);
-    this.logger.debug(`Cache get after set: ${this.rootKey}:${key}:${cachedValue}`);
 
   }
 
