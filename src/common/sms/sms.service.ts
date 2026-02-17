@@ -5,7 +5,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 
 // Services
 import { HttpService } from '../http/http.service';
-import { UserRegisteredEvent } from 'src/modules/auth/events/auth.events';
+import { UserRegisteredEvent, UserResendConfirmationEvent } from 'src/modules/auth/events/auth.events';
 
 @Injectable()
 export class SmsService {
@@ -91,6 +91,24 @@ export class SmsService {
 
     // Crear el mensaje
     const mstext = `Hola ${username}, su código de recuperación es: ${code}`;
+
+    // Enviar sms con el código de verificación
+    await this.sendSMS(username, phone, mstext);
+  }
+
+  @OnEvent('user.resend_confirmation', { async: true })
+  async handleUserResendConfirmationEvent({
+    username,
+    phone,
+    code,
+    attempt,
+  }: UserResendConfirmationEvent) {
+    this.#logger.debug(
+      `[SmsService] Processing user.resend_confirmation event for username: ${username}, phone: ${phone}, attempt: ${attempt}`,
+    );
+
+    // Crear el mensaje
+    const mstext = `Hola ${username}, su código de confirmación es: ${code}. (${attempt} reenvíos restantes)`;
 
     // Enviar sms con el código de verificación
     await this.sendSMS(username, phone, mstext);

@@ -78,6 +78,18 @@ export class UserRegisteredEvent {
   ) {}
 }
 
+/**
+ * Evento emitido cuando se reenvía un código de confirmación.
+ */
+export class UserResendConfirmationEvent {
+  constructor(
+    public readonly username: string,
+    public readonly phone: string,
+    public readonly code: string,
+    public readonly attempt: string,
+  ) {}
+}
+
 export type AuthEvent =
   | JwtGeneratedEvent
   | JwtValidatedEvent

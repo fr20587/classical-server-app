@@ -26,9 +26,6 @@ import { JwksAdapter } from './infrastructure/adapters/jwks.adapter';
 import { JwtTokenAdapter } from './infrastructure/adapters/jwt-token.adapter';
 import { ReplayProtectionAdapter } from './infrastructure/adapters/replay-protection.adapter';
 import { SessionRepository } from './infrastructure/adapters/session.repository';
-import { CardsService } from '../cards/application/cards.service';
-import { CardsRepository } from '../cards/infrastructure/adapters';
-import { Iso4PinblockService } from '../cards/infrastructure/services/iso4-pinblock.service';
 import { TenantsModule } from '../tenants';
 
 import { Session, SessionSchema } from './infrastructure/schemas/session.schema';

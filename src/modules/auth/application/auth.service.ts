@@ -39,7 +39,7 @@ import { ApiResponse } from 'src/common/types/api-response.type';
 import { ConfirmationCodeService } from '../infrastructure/services/confirmation-code.service';
 import { SessionPersistenceService } from '../infrastructure/services/session-persistence.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { UserRegisteredEvent } from '../events/auth.events';
+import { UserRegisteredEvent, UserResendConfirmationEvent } from '../events/auth.events';
 import { CardsService } from 'src/modules/cards/application/cards.service';
 import { PermissionsService } from '../../permissions/application/permissions.service';
 import { TenantsRepository } from 'src/modules/tenants/infrastructure/adapters/tenant.repository';
@@ -286,7 +286,7 @@ export class AuthService {
       console.error(`🔴 LOGIN ERROR CAUGHT:`, error);
       console.error(`Error message: ${error?.message}`);
       console.error(`Error stack: ${error?.stack}`);
-      
+
       // Si ya se registró la auditoría en las condiciones anteriores, no duplicar
       if (
         !(error instanceof BadRequestException) &&
@@ -1095,7 +1095,7 @@ export class AuthService {
       }
 
       // Generar nuevo código
-      await this.confirmationCodeService.generateAndStore(
+      const code = await this.confirmationCodeService.generateAndStore(
         phone,
         'confirmation',
       );
@@ -1109,6 +1109,17 @@ export class AuthService {
       // Obtener reenvíos restantes
       const resendCountRemaining =
         await this.confirmationCodeService.getResendCountRemaining(phone);
+
+      // Emitir evento para enviar código SMS
+      await this.eventEmitter.emitAsync(
+        'user.resend_confirmation',
+        new UserResendConfirmationEvent(
+          user!.fullname.split(' ')[0],
+          phone,
+          code,
+          resendCountRemaining.toString()
+        ),
+      );
 
       // Registrar resend exitoso
       this.auditService.logAllow('AUTH_RESEND_CODE', 'user', phone, {
