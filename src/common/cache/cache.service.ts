@@ -50,14 +50,7 @@ export class CacheService implements ICacheService {
       JSON.stringify(value),
       'PX',
       ttlInMilliseconds,
-    ).then(() => {
-      this.logger.debug(`Cache set successfully: ${this.rootKey}:${key}`);
-      // Poner log de comprobacion de que se guardo el valor
-      this.logger.debug(`Cache set: ${this.rootKey}:${key}:${value} with TTL: ${ttl} seconds`);
-  
-      const cachedValue = this._redisClient.get(`${this.rootKey}:${key}`);
-      this.logger.debug(`Cache get after set: ${this.rootKey}:${key}:${cachedValue}`);
-    });
+    );
 
 
   }

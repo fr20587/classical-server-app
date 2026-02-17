@@ -19,6 +19,8 @@ export class CsrfService {
     const token = randomUUID();
     console.log('Generated CSRF token:', token);
     await this.cacheService.set(this.CSRF_PREFIX + token, true, this.CSRF_TTL * 1000);
+    const cachedValue = await this.cacheService.getByKey<boolean>(this.CSRF_PREFIX + token);
+    console.log('Cached CSRF token value:', cachedValue);
     return token;
   }
 
