@@ -97,4 +97,36 @@ export interface IVaultClient {
    * Check if a PAN exists for a tenant in Vault
    */
   existsPan(tenantId: string): Promise<boolean>;
+
+  /**
+   * Store server private key for a device in Vault
+   * Path: devices/keys/{keyHandle}/private
+   * Securely stores the PEM-encoded private key with metadata
+   */
+  storeServerPrivateKey(
+    keyHandle: string,
+    privatePem: string,
+  ): Promise<Result<void, VaultError>>;
+
+  /**
+   * Retrieve server private key for a device from Vault
+   * CAUTION: Never transmit over network. Internal-only operation.
+   */
+  retrieveServerPrivateKey(keyHandle: string): Promise<Result<string, VaultError>>;
+
+  /**
+   * Delete server private key for a device from Vault (revocation)
+   */
+  deleteServerPrivateKey(keyHandle: string): Promise<Result<void, VaultError>>;
+
+  /**
+   * Check if server private key exists in Vault for a device
+   */
+  existsPrivateKey(keyHandle: string): Promise<boolean>;
+
+  /**
+   * List all stored device key handles in Vault
+   * Used for auditing and cleanup operations
+   */
+  listStoredKeyHandles(): Promise<string[]>;
 }

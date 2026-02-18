@@ -53,8 +53,8 @@ import type { QueryParams, SortOrder } from 'src/common/types';
   required: false,
 })
 @UseGuards(JwtAuthGuard)
-@Controller('transactions')
 @UseGuards(AuthGuard('jwt'))
+@Controller('transactions')
 export class TransactionsController {
   private readonly logger = new Logger(TransactionsController.name);
 

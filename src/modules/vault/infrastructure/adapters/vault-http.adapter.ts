@@ -435,6 +435,112 @@ export class VaultHttpAdapter implements IVaultClient {
     }
   }
 
+  /**
+   * Device private key storage operations
+   */
+
+  /** Guardar la clave privada del servidor para un dispositivo en Vault */
+  async storeServerPrivateKey(
+    keyHandle: string,
+    privatePem: string,
+  ): Promise<Result<void, VaultError>> {
+    try {
+      const vaultPath = `devices/keys/${keyHandle}/private`;
+      
+      const writeResult = await this.writeKV(vaultPath, {
+        value: privatePem,
+        created_at: new Date().toISOString(),
+      });
+
+      if (!writeResult.isSuccess) {
+        return Result.fail(writeResult.getError());
+      }
+
+      this.logger.log(`Stored server private key in Vault | key_handle: ${keyHandle}`);
+      return Result.ok();
+    } catch (error: any) {
+      const vaultError = this.handleError(error, 'write', `devices/keys/${keyHandle}/private`);
+      this.emitEvent('write', `devices/keys/${keyHandle}/private`, 'failed', vaultError);
+      return Result.fail(vaultError);
+    }
+  }
+
+  /** Recuperar la clave privada del servidor para un dispositivo desde Vault */
+  async retrieveServerPrivateKey(keyHandle: string): Promise<Result<string, VaultError>> {
+    try {
+      const vaultPath = `devices/keys/${keyHandle}/private`;
+      
+      const readResult = await this.readKV(vaultPath);
+
+      if (!readResult.isSuccess) {
+        return Result.fail(readResult.getError());
+      }
+
+      const vaultData = readResult.getValue();
+      const privateKeyData = vaultData.data as Record<string, any>;
+
+      if (!privateKeyData?.value) {
+        const error = new VaultError(
+          404,
+          'Private key not found',
+          `Private key not found in Vault for key_handle: ${keyHandle}`,
+        );
+        this.emitEvent('read', vaultPath, 'failed', error);
+        return Result.fail(error);
+      }
+
+      const privatePem = privateKeyData.value as string;
+      this.logger.debug(`Retrieved server private key from Vault | key_handle: ${keyHandle}`);
+      return Result.ok(privatePem);
+    } catch (error: any) {
+      const vaultError = this.handleError(error, 'read', `devices/keys/${keyHandle}/private`);
+      this.emitEvent('read', `devices/keys/${keyHandle}/private`, 'failed', vaultError);
+      return Result.fail(vaultError);
+    }
+  }
+
+  /** Eliminar la clave privada del servidor para un dispositivo desde Vault */
+  async deleteServerPrivateKey(keyHandle: string): Promise<Result<void, VaultError>> {
+    try {
+      const vaultPath = `devices/keys/${keyHandle}/private`;
+      
+      const deleteResult = await this.deleteKV(vaultPath);
+
+      if (!deleteResult.isSuccess) {
+        return Result.fail(deleteResult.getError());
+      }
+
+      this.logger.log(`Deleted server private key from Vault | key_handle: ${keyHandle}`);
+      return Result.ok();
+    } catch (error: any) {
+      const vaultError = this.handleError(error, 'delete', `devices/keys/${keyHandle}/private`);
+      this.emitEvent('delete', `devices/keys/${keyHandle}/private`, 'failed', vaultError);
+      return Result.fail(vaultError);
+    }
+  }
+
+  /** Verificar que una clave privada existe en Vault para un dispositivo */
+  async existsPrivateKey(keyHandle: string): Promise<boolean> {
+    try {
+      const result = await this.retrieveServerPrivateKey(keyHandle);
+      return result.isSuccess;
+    } catch (error: any) {
+      return false;
+    }
+  }
+
+  /** Listar todos los key_handles almacenados en Vault */
+  async listStoredKeyHandles(): Promise<string[]> {
+    try {
+      // Por ahora, retorna lista vacía - implementar cuando list() sea disponible en HTTP adapter
+      this.logger.warn(`listStoredKeyHandles not implemented - Vault LIST API not available`);
+      return [];
+    } catch (error: any) {
+      this.logger.warn(`Failed to list key_handles from Vault: ${error.message}`);
+      return [];
+    }
+  }
+
   private emitEvent(
     operation: 'login' | 'read' | 'write' | 'delete' | 'renew' | 'unwrap',
     path: string | undefined,

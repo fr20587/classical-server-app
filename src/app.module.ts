@@ -17,6 +17,7 @@ import { BootstrapModule } from './common/bootstrap/bootstrap.module';
 import { CardsModule } from './modules/cards/cards.module';
 import { CommonModule } from './common/common.module';
 import { CsrfModule } from './modules/csrf/csrf.module';
+// import { DevicesModule } from './modules/devices/devices.module';
 import { ModulesModule } from './modules/modules';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -51,6 +52,7 @@ import { configValidationSchema } from './config/config.schema';
 
 // Constants
 import { INJECTION_TOKENS } from './common/constants/injection-tokens';
+import { DevicesModule } from './modules/devices/devices.module';
 
 @Module({
   imports: [
@@ -67,6 +69,7 @@ import { INJECTION_TOKENS } from './common/constants/injection-tokens';
     CardsModule,
     CommonModule,
     CsrfModule,
+    DevicesModule,
     // KeysModule,
     ModulesModule,
     PermissionsModule,
