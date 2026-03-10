@@ -64,13 +64,10 @@ export class SgtCardAdapter implements ISgtCardPort {
         'X-Signature': signature,
         'X-Timestamp': timestamp,
         'X-Client-ID': clientId,
-        apiKey 
+        'apiKey': apiKey,
       };
 
-      console.log({ headers })
-      
       this.logger.log(`Calling SGT /activate-pin for cardId=${cardId}`);
-      console.log({ url:  `${baseUrl}/activate-pin`, body, headers });
 
       const response = await this.httpService.post<SgtActivatePinResponse>(
         `${baseUrl}/activate-pin`,
