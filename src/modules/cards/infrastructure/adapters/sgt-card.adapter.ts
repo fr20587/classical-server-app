@@ -50,6 +50,7 @@ export class SgtCardAdapter implements ISgtCardPort {
       const baseUrl = this.configService.getOrThrow<string>('SGT_URL');
       const hmacSecret = this.configService.getOrThrow<string>('SGT_HMAC_SECRET');
       const clientId = this.configService.getOrThrow<string>('SGT_CLIENT_ID');
+      const apiKey = this.configService.getOrThrow<string>('SGT_API_KEY');
 
       const body = { pan, pin: encryptedPinblock };
       const timestamp = new Date().toISOString();
@@ -63,6 +64,7 @@ export class SgtCardAdapter implements ISgtCardPort {
         'X-Signature': signature,
         'X-Timestamp': timestamp,
         'X-Client-ID': clientId,
+        apiKey 
       };
 
       console.log({ headers })
