@@ -125,6 +125,7 @@ export class CardsService {
 
       // Step 7: Verify card with SGT (módulo emisor)
       this.logger.log(`[${requestId}] Calling SGT to verify cardId=${cardId}`);
+      
       const sgtResult = await this.sgtCardPort.activatePin(
         cardId,
         dto.pan,

@@ -21,14 +21,14 @@ Nuestra solución permite a bancos, cooperativas y entidades financieras **lanza
 
 Las instituciones financieras sin pasarela de pago propia enfrentan un escenario cada vez más desafiante:
 
-| Desafío | Impacto |
-|---------|---------|
-| Dependencia de terceros para procesamiento de pagos | Comisiones elevadas que erosionan márgenes |
-| Falta de control sobre la experiencia del cliente | Pérdida de fidelización y datos estratégicos |
-| Tiempos de desarrollo internos de 18-36 meses | Ventana de oportunidad perdida frente a fintechs |
-| Costos de cumplimiento normativo (PCI-DSS, EMVCo) | Inversiones millonarias en certificación |
-| Integración fragmentada con procesadores de tarjetas | Complejidad operativa y errores de conciliación |
-| Ausencia de billetera digital propia | Clientes migrando a soluciones competidoras |
+| Desafío                                              | Impacto                                          |
+| ---------------------------------------------------- | ------------------------------------------------ |
+| Dependencia de terceros para procesamiento de pagos  | Comisiones elevadas que erosionan márgenes       |
+| Falta de control sobre la experiencia del cliente    | Pérdida de fidelización y datos estratégicos     |
+| Tiempos de desarrollo internos de 18-36 meses        | Ventana de oportunidad perdida frente a fintechs |
+| Costos de cumplimiento normativo (PCI-DSS, EMVCo)    | Inversiones millonarias en certificación         |
+| Integración fragmentada con procesadores de tarjetas | Complejidad operativa y errores de conciliación  |
+| Ausencia de billetera digital propia                 | Clientes migrando a soluciones competidoras      |
 
 **El resultado:** instituciones que pierden relevancia en un mercado donde los pagos digitales crecen a doble dígito cada año.
 
@@ -40,22 +40,22 @@ Las instituciones financieras sin pasarela de pago propia enfrentan un escenario
 
 Entregamos una **plataforma de pagos integral** que cubre todo el ciclo de vida de una transacción digital:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                   PLATAFORMA DE PAGOS DIGITALES                 │
 │                                                                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────┐   │
-│  │  Gestión  │  │  Gestión │  │  Pagos   │  │  Comercios &  │   │
-│  │    de     │  │    de    │  │   QR     │  │   Tenants     │   │
-│  │ Usuarios  │  │ Tarjetas │  │  EMVCo   │  │ Multi-tenant  │   │
-│  └──────────┘  └──────────┘  └──────────┘  └───────────────┘   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────┐    │
+│  │  Gestión │  │  Gestión │  │  Pagos   │  │  Comercios &  │    │
+│  │    de    │  │    de    │  │   QR     │  │   Tenants     │    │
+│  │ Usuarios │  │ Tarjetas │  │  EMVCo   │  │ Multi-tenant  │    │
+│  └──────────┘  └──────────┘  └──────────┘  └───────────────┘    │
 │                                                                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────┐   │
-│  │Seguridad │  │ Auditoría│  │Dispositiv│  │  Dashboard &  │   │
-│  │Criptográf│  │    y     │  │   os &   │  │  Reportería   │   │
-│  │   ica    │  │Cumplimien│  │  Claves  │  │  en Tiempo    │   │
-│  │ Avanzada │  │   to     │  │  ECDH    │  │    Real       │   │
-│  └──────────┘  └──────────┘  └──────────┘  └───────────────┘   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────┐    │
+│  │Seguridad │  │ Auditoría│  │Dispositiv│  │  Dashboard &  │    │
+│  │Criptográf│  │    y     │  │   os &   │  │  Reportería   │    │
+│  │   ica    │  │Cumplimien│  │  Claves  │  │  en Tiempo    │    │
+│  │ Avanzada │  │   to     │  │  ECDH    │  │    Real       │    │
+│  └──────────┘  └──────────┘  └──────────┘  └───────────────┘    │
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │          Bóveda de Secretos (HashiCorp Vault)           │    │
@@ -140,32 +140,32 @@ Entregamos una **plataforma de pagos integral** que cubre todo el ciclo de vida 
 
 La plataforma está construida sobre principios de ingeniería que garantizan mantenibilidad, escalabilidad y seguridad:
 
-| Principio | Implementación |
-|-----------|---------------|
+| Principio                  | Implementación |
+| -------------------------- |--------------- |
 | **Arquitectura Hexagonal** | Separación estricta entre lógica de negocio, infraestructura y presentación. Permite cambiar base de datos, proveedor de SMS o procesador de pagos sin modificar reglas de negocio |
-| **Máquinas de Estado** | Transiciones controladas y auditables para usuarios, tarjetas, transacciones y comercios. Imposible llegar a estados inválidos |
-| **Eventos de Dominio** | Comunicación asíncrona entre módulos. Desacoplamiento total entre operaciones |
-| **Seguridad por Diseño** | Cifrado en reposo y tránsito, bóveda de secretos, protección CSRF, rate limiting, headers de seguridad |
+| **Máquinas de Estado**     | Transiciones controladas y auditables para usuarios, tarjetas, transacciones y comercios. Imposible llegar a estados inválidos |
+| **Eventos de Dominio**     | Comunicación asíncrona entre módulos. Desacoplamiento total entre operaciones |
+| **Seguridad por Diseño**   | Cifrado en reposo y tránsito, bóveda de secretos, protección CSRF, rate limiting, headers de seguridad |
 
 ### 4.2 Stack Tecnológico
 
-```
+```text
 ┌─────────────────────────────────────────────┐
-│              Capa de Presentación            │
-│         API REST + Swagger/OpenAPI           │
-│            WebSocket (tiempo real)           │
+│              Capa de Presentación           │
+│         API REST + Swagger/OpenAPI          │
+│            WebSocket (tiempo real)          │
 ├─────────────────────────────────────────────┤
-│             Capa de Aplicación               │
-│    NestJS 11 · TypeScript · Express.js       │
-│    Validación · Interceptores · Guards       │
+│             Capa de Aplicación              │
+│    NestJS 11 · TypeScript · Express.js      │
+│    Validación · Interceptores · Guards      │
 ├─────────────────────────────────────────────┤
-│              Capa de Dominio                 │
-│   Entidades · Máquinas de Estado (xstate)    │
+│              Capa de Dominio                │
+│   Entidades · Máquinas de Estado (xstate)   │
 │   Puertos · Eventos de Dominio              │
 ├─────────────────────────────────────────────┤
-│           Capa de Infraestructura            │
-│  MongoDB · Redis · HashiCorp Vault · SGT     │
-│  Adaptadores · Repositorios · Servicios      │
+│           Capa de Infraestructura           │
+│  MongoDB · Redis · HashiCorp Vault · SGT    │
+│  Adaptadores · Repositorios · Servicios     │
 └─────────────────────────────────────────────┘
 ```
 
@@ -207,28 +207,28 @@ La arquitectura hexagonal permite integrar nuevos proveedores con mínimo esfuer
 
 ### 5.2 Capas de Seguridad
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
-│  1. TRANSPORTE                                   │
+│  1. TRANSPORTE                                  │
 │     TLS 1.3 · CORS estricto · Helmet headers    │
 ├─────────────────────────────────────────────────┤
-│  2. AUTENTICACIÓN                                │
-│     JWT RS256 · MFA · Anti-replay · Rate limit   │
+│  2. AUTENTICACIÓN                               │
+│     JWT RS256 · MFA · Anti-replay · Rate limit  │
 ├─────────────────────────────────────────────────┤
-│  3. AUTORIZACIÓN                                 │
-│     RBAC granular · Guards · Permisos por módulo │
+│  3. AUTORIZACIÓN                                │
+│     RBAC granular · Guards · Permisos por módulo│
 ├─────────────────────────────────────────────────┤
-│  4. DATOS EN REPOSO                              │
-│     Vault para secretos · Argon2 para passwords  │
-│     AES para datos sensibles                     │
+│  4. DATOS EN REPOSO                             │
+│     Vault para secretos · Argon2 para passwords │
+│     AES para datos sensibles                    │
 ├─────────────────────────────────────────────────┤
-│  5. DISPOSITIVOS                                 │
-│     ECDH P-256 · Rotación de claves · Revocación │
-│     Hardware-backed keys (TEE/Secure Enclave)    │
+│  5. DISPOSITIVOS                                │
+│     ECDH P-256 · Rotación de claves · Revocación│
+│     Hardware-backed keys (TEE/Secure Enclave)   │
 ├─────────────────────────────────────────────────┤
-│  6. AUDITORÍA                                    │
-│     Trazabilidad completa · Tiempo real          │
-│     Logs inmutables · Actor tracking             │
+│  6. AUDITORÍA                                   │
+│     Trazabilidad completa · Tiempo real         │
+│     Logs inmutables · Actor tracking            │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -262,7 +262,7 @@ La captura y transmisión del PIN sigue un modelo de seguridad robusto:
 
 ### 6.2 Fases de Implementación
 
-```
+```text
 Fase 1                Fase 2               Fase 3              Fase 4
 DESCUBRIMIENTO        IMPLEMENTACIÓN       INTEGRACIÓN         LANZAMIENTO
 (2 semanas)           (4-6 semanas)        (3-4 semanas)       (2 semanas)
@@ -318,12 +318,14 @@ DESCUBRIMIENTO        IMPLEMENTACIÓN       INTEGRACIÓN         LANZAMIENTO
 Con la plataforma implementada, la institución puede ofrecer:
 
 ### Para Clientes Finales
+
 - Registro y activación de tarjetas desde el móvil
 - Pagos en comercios mediante QR (estándar EMVCo)
 - Gestión de múltiples tarjetas desde una sola aplicación
 - Historial de transacciones en tiempo real
 
 ### Para Comercios Afiliados
+
 - Onboarding digital de comercios
 - Generación de QR de cobro
 - Notificaciones de pago instantáneas vía webhooks
@@ -331,6 +333,7 @@ Con la plataforma implementada, la institución puede ofrecer:
 - Credenciales OAuth2 para integración con sus sistemas
 
 ### Para la Institución
+
 - Dashboard de operaciones en tiempo real
 - Gestión de roles y permisos por área
 - Auditoría completa para cumplimiento regulatorio
@@ -367,9 +370,9 @@ Con la plataforma implementada, la institución puede ofrecer:
 
 Para agendar una demostración o solicitar información adicional:
 
-**[Nombre del contacto comercial]**
-**[Correo electrónico]**
-**[Teléfono]**
+**[Frank Rodríguez López]**
+**[frank@athendat.site](mailto:frank@athendat.site)**
+**[+5350952149](tel:+5350952149)**
 
 ---
 

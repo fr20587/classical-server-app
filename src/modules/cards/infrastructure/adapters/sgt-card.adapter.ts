@@ -29,7 +29,7 @@ export class SgtCardAdapter implements ISgtCardPort {
     private readonly configService: ConfigService,
     @Inject(INJECTION_TOKENS.SGT_PINBLOCK_PORT)
     private readonly sgtPinblockPort: ISgtPinblockPort,
-  ) {}
+  ) { }
 
   /**
    * Verifica y activa el PIN de una tarjeta contra el SGT.
@@ -59,17 +59,21 @@ export class SgtCardAdapter implements ISgtCardPort {
         .update(payload)
         .digest('hex');
 
+      const headers = {
+        'X-Signature': signature,
+        'X-Timestamp': timestamp,
+        'X-Client-ID': clientId,
+      };
+
+      console.log({ headers })
+
       this.logger.log(`Calling SGT /activate-pin for cardId=${cardId}`);
 
       const response = await this.httpService.post<SgtActivatePinResponse>(
         `${baseUrl}/activate-pin`,
         body,
         {
-          headers: {
-            'X-Signature': signature,
-            'X-Timestamp': timestamp,
-            'X-Client-ID': clientId,
-          },
+          headers,
         },
       );
 
