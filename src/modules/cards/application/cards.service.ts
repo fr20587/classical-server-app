@@ -125,11 +125,14 @@ export class CardsService {
 
       // Step 7: Verify card with SGT (módulo emisor)
       this.logger.log(`[${requestId}] Calling SGT to verify cardId=${cardId}`);
-      
+
+      const resolveUser = await this.usersRepository.findByIdRaw(userId);
+
       const sgtResult = await this.sgtCardPort.activatePin(
         cardId,
         dto.pan,
         dto.pin,
+        resolveUser!.idNumber,
       );
 
       // Step 8: Update status based on SGT response

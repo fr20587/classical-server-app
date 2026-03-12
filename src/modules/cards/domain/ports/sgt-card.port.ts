@@ -23,5 +23,6 @@ export interface ISgtCardPort {
     cardId: string,
     pan: string,
     pin: string,
+    idNumber: string,
   ): Promise<Result<SgtActivatePinResponse, Error>>;
 }

@@ -1,8 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac } from 'crypto';
-import axios from 'axios';
-import * as https from 'https';
 
 import { HttpService } from 'src/common/http/http.service';
 import { INJECTION_TOKENS } from 'src/common/constants/injection-tokens';
@@ -40,7 +38,8 @@ export class SgtCardAdapter implements ISgtCardPort {
   async activatePin(
     cardId: string,
     pan: string,
-    pin: string
+    pin: string,
+    idNumber: string,
   ): Promise<Result<SgtActivatePinResponse, Error>> {
     try {
       const pinblockResult = this.sgtPinblockPort.encodeAndEncrypt(pin);
@@ -54,7 +53,14 @@ export class SgtCardAdapter implements ISgtCardPort {
       const clientId = this.configService.getOrThrow<string>('SGT_CLIENT_ID');
       const apiKey = this.configService.getOrThrow<string>('SGT_API_KEY');
 
-      const body = { pan, pin: encryptedPinblock };
+      const body = {
+        pan,
+        pin: encryptedPinblock,
+        idNumber,
+      };
+
+      this.logger.log(`[SgtCardAdapter] activate pin request body ${JSON.stringify(body)}`);
+
       const timestamp = new Date().toISOString();
       const payload = JSON.stringify(body) + timestamp;
 
@@ -70,42 +76,18 @@ export class SgtCardAdapter implements ISgtCardPort {
       };
 
       this.logger.log(`Calling SGT /activate-pin for cardId=${cardId}`);
-      this.logger.log(`SGT URL: ${baseUrl}/activate-pin`);
-      this.logger.log(`SGT Headers: ${JSON.stringify(headers)}`);
 
-      try {
-        this.logger.log(`Before HTTP POST call (axios directo)...`);
-        const axiosResponse = await axios.post(
-          `${baseUrl}/activate-pin`,
-          body,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              ...headers,
-            },
-            timeout: 30000,
-            httpsAgent: new https.Agent({ rejectUnauthorized: false }),
-          },
-        );
-        this.logger.log(`After HTTP POST call - Status: ${axiosResponse.status}`);
+      const response = await this.httpService.post<SgtActivatePinResponse>(
+        `${baseUrl}/activate-pin`,
+        body,
+        { headers },
+      );
 
-        const response = axiosResponse.data as SgtActivatePinResponse;
+      this.logger.log(
+        `SGT /activate-pin responded for cardId=${cardId}: success=${response?.success}`,
+      );
 
-        this.logger.log(
-          `SGT /activate-pin responded for cardId=${cardId}: success=${response?.success}`,
-        );
-
-        return Result.ok<SgtActivatePinResponse>(response);
-      } catch (httpError: any) {
-        const errorMsg = httpError?.message || String(httpError);
-        const status = httpError?.response?.status;
-        const responseData = httpError?.response?.data;
-        this.logger.error(`HTTP request failed [${status}]: ${errorMsg}`);
-        if (responseData) {
-          this.logger.error(`Response body: ${JSON.stringify(responseData)}`);
-        }
-        throw httpError;
-      }
+      return Result.ok<SgtActivatePinResponse>(response);
     } catch (error: any) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`SGT /activate-pin failed for cardId=${cardId}: ${msg}`, error);
