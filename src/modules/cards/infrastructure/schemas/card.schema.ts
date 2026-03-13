@@ -40,6 +40,15 @@ export class Card extends AbstractSchema {
   @Prop({ type: String })
   ticketReference: string;
 
+  @Prop({ required: true, type: String })
+  tml: string;
+
+  @Prop({ required: true, type: String })
+  aut: string;
+
+  @Prop({ type: String })
+  token?: string;
+
   @Prop({ required: true, type: Number, default: 0 })
   balance: number;
 

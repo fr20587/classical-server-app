@@ -1,4 +1,5 @@
 export enum CardStatusEnum {
+  REGISTERED = 'REGISTERED',
   ACTIVE = 'ACTIVE',
   BLOCKED = 'BLOCKED',
   EXPIRED = 'EXPIRED',

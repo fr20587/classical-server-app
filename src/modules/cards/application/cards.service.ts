@@ -21,6 +21,7 @@ import { ApiResponse } from 'src/common/types/api-response.type';
 import { PaginationMeta, QueryParams } from 'src/common/types';
 import { buildMongoQuery } from 'src/common/helpers';
 import type { ISgtCardPort } from '../domain/ports/sgt-card.port';
+import { ACTIVATION_CODES } from '../domain/constants/activation-codes.constant';
 
 /**
  * Card Service - Application layer for card operations
@@ -123,6 +124,9 @@ export class CardsService {
         dto.pan,
         pinblock,
         resolveUser!.idNumber,
+        dto.tml,
+        dto.aut,
+        dto.token,
       );
 
       if (sgtResult.isFailure) {
@@ -154,18 +158,66 @@ export class CardsService {
         );
       }
 
-      this.logger.log(`[${requestId}] SGT validated card ${cardId} → ACTIVE`);
+      const sgtResponse = sgtResult.getValue();
+      const activationCode = sgtResponse.data?.activationCode;
 
-      // Step 7: Create document in MongoDB only after SGT validation
+      this.logger.log(
+        `[${requestId}] SGT responded for card ${cardId}: activationCode=${activationCode}`,
+      );
+
+      // AP001: Registro rechazado por el emisor
+      if (activationCode === ACTIVATION_CODES.AP001.code) {
+        this.logger.warn(`[${requestId}] SGT registration rejected for card ${cardId}`);
+        await this.rollbackVaultSecrets(cardId, requestId, userId);
+        return ApiResponse.fail<CardResponseDto>(
+          HttpStatus.BAD_REQUEST,
+          ACTIVATION_CODES.AP001.message,
+          ACTIVATION_CODES.AP001.description,
+        );
+      }
+
+      // AP004: Error de comunicación con el emisor
+      if (activationCode === ACTIVATION_CODES.AP004.code) {
+        this.logger.error(`[${requestId}] SGT communication error for card ${cardId}`);
+        await this.rollbackVaultSecrets(cardId, requestId, userId);
+        return ApiResponse.fail<CardResponseDto>(
+          HttpStatus.BAD_GATEWAY,
+          ACTIVATION_CODES.AP004.message,
+          ACTIVATION_CODES.AP004.description,
+        );
+      }
+
+      // Determinar estado según código de activación
+      // AP002: Registro exitoso, activación fallida → REGISTERED (reintento pendiente)
+      // AP000/AP003: Activación exitosa → ACTIVE
+      const isRegisteredOnly = activationCode === ACTIVATION_CODES.AP002.code;
+      const cardStatus = isRegisteredOnly
+        ? CardStatusEnum.REGISTERED
+        : CardStatusEnum.ACTIVE;
+
+      // Parsear balance si viene en la respuesta (viene en centavos como string)
+      const sgtBalance = sgtResponse.data?.balance
+        ? parseInt(sgtResponse.data.balance, 10) || 0
+        : 0;
+
+      this.logger.log(
+        `[${requestId}] SGT card ${cardId} → ${cardStatus}${isRegisteredOnly ? ' (pendiente reintento activación)' : ''}`,
+      );
+
+      // Step 7: Create document in MongoDB after SGT response
       const cardData: Partial<Card> = {
         id: cardId,
         userId,
         cardType: dto.cardType,
-        status: CardStatusEnum.ACTIVE,
+        status: cardStatus,
         lastFour,
         expiryMonth: dto.expiryMonth,
         expiryYear: dto.expiryYear,
         ticketReference: dto.ticketReference,
+        tml: dto.tml,
+        aut: dto.aut,
+        token: sgtResponse.data?.token,
+        balance: sgtBalance,
       };
 
       const savedCard = await this.cardsRepository.create(cardData);
@@ -185,10 +237,14 @@ export class CardsService {
 
       const responseDto = this.mapCardToResponse(savedCard);
 
+      const responseMessage = isRegisteredOnly
+        ? ACTIVATION_CODES.AP002.message
+        : 'Tarjeta creada exitosamente';
+
       return ApiResponse.ok<CardResponseDto>(
         HttpStatus.CREATED,
         responseDto,
-        'Tarjeta creada exitosamente',
+        responseMessage,
       );
     } catch (error: any) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -478,6 +534,9 @@ export class CardsService {
       cardType: card.cardType,
       balance: card.balance,
       status: card.status,
+      tml: card.tml,
+      aut: card.aut,
+      token: card.token,
       createdAt: card.createdAt,
       lastTransactions: card.lastTransactions
         ? this.convertTransactionsAmounts(card.lastTransactions)

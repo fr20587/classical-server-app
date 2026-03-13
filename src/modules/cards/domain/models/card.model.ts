@@ -28,6 +28,9 @@ export class Card {
     expiryMonth: number;
     expiryYear: number;
     ticketReference: string;
+    tml: string;
+    aut: string;
+    token?: string;
     balance: number;
     createdAt: Date;
 }

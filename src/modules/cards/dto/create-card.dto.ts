@@ -7,6 +7,8 @@ import {
   Length,
   IsInt,
   IsNotEmpty,
+  IsNumberString,
+  IsOptional,
 } from 'class-validator';
 import { IsLuhnCard } from 'src/common/validators/luhn.validator';
 import { CardTypeEnum } from '../domain/enums/card-type.enum';
@@ -77,4 +79,35 @@ export class CreateCardDto {
     message: 'La referencia de ticket debe ser una cadena de texto.',
   })
   ticketReference: string;
+
+  @ApiProperty({
+    description: 'Código de terminal (TML). Debe ser una cadena numérica de 8 dígitos.',
+    example: '00012345',
+    required: true,
+    type: String,
+  })
+  @IsNumberString({}, { message: 'El TML debe contener solo caracteres numéricos.' })
+  @Length(8, 8, { message: 'El TML debe tener exactamente 8 dígitos.' })
+  tml: string;
+
+  @ApiProperty({
+    description: 'Código de autorización (AUT). Debe ser una cadena numérica de 6 dígitos.',
+    example: '123456',
+    required: true,
+    type: String,
+  })
+  @IsNumberString({}, { message: 'El AUT debe contener solo caracteres numéricos.' })
+  @Length(6, 6, { message: 'El AUT debe tener exactamente 6 dígitos.' })
+  aut: string;
+
+  @ApiProperty({
+    description: 'Token del PAN recibido del emisor en un registro previo (AP002). Cadena numérica de 16 caracteres. Solo requerido para reintento de activación.',
+    example: '0400000000701851',
+    required: false,
+    type: String,
+  })
+  @IsOptional()
+  @IsNumberString({}, { message: 'El token debe contener solo caracteres numéricos.' })
+  @Length(16, 16, { message: 'El token debe tener exactamente 16 caracteres.' })
+  token?: string;
 }

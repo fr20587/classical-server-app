@@ -42,6 +42,9 @@ export class SgtCardAdapter implements ISgtCardPort {
     pan: string,
     pinblock: string,
     idNumber: string,
+    tml: string,
+    aut: string,
+    token?: string,
   ): Promise<Result<SgtActivatePinResponse, Error>> {
     try {
       // Step 1: Decode ISO-4 pinblock to extract the plain PIN
@@ -64,11 +67,17 @@ export class SgtCardAdapter implements ISgtCardPort {
       const clientId = this.configService.getOrThrow<string>('SGT_CLIENT_ID');
       const apiKey = this.configService.getOrThrow<string>('SGT_API_KEY');
 
-      const body = {
+      const body: Record<string, string> = {
         pan,
         pin: encryptedPinblock,
         idNumber,
+        tml,
+        aut,
       };
+
+      if (token) {
+        body.token = token;
+      }
 
       this.logger.log(`[SgtCardAdapter] activate pin request body ${JSON.stringify(body)}`);
 
@@ -95,10 +104,10 @@ export class SgtCardAdapter implements ISgtCardPort {
       );
 
       this.logger.log(
-        `SGT /activate-pin responded for cardId=${cardId}: success=${response?.success}`,
+        `SGT /activate-pin responded for cardId=${cardId}: ok=${response?.ok}, activationCode=${response?.data?.activationCode}`,
       );
 
-      if (!response?.success) {
+      if (!response?.ok) {
         const sgtMessage = this.extractSgtMessage(response);
         this.logger.warn(
           `SGT /activate-pin rejected cardId=${cardId}: ${sgtMessage}`,

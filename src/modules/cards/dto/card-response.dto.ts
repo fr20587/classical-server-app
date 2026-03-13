@@ -95,6 +95,29 @@ export class CardResponseDto {
   status: CardStatusEnum;
 
   @ApiProperty({
+    description: 'Código de terminal (TML). Cadena numérica de 8 dígitos.',
+    example: '00012345',
+    type: String,
+    required: true,
+  })
+  tml: string;
+
+  @ApiProperty({
+    description: 'Código de autorización (AUT). Cadena numérica de 6 dígitos.',
+    example: '123456',
+    type: String,
+    required: true,
+  })
+  aut: string;
+
+  @ApiPropertyOptional({
+    description: 'Token del PAN recibido del emisor. Presente cuando la tarjeta fue registrada (AP002) o activada exitosamente.',
+    example: '0400000000701851',
+    type: String,
+  })
+  token?: string;
+
+  @ApiProperty({
     description: 'Fecha y hora de creación de la tarjeta en formato ISO 8601.',
     example: '2024-01-15T10:20:30Z',
     type: String,
