@@ -9,6 +9,7 @@ import {
   ISgtCardPort,
   SgtActivatePinResponse,
 } from '../../domain/ports/sgt-card.port';
+import { ACTIVATION_CODES } from '../../domain/constants/activation-codes.constant';
 import type { ISgtPinblockPort } from '../../domain/ports/sgt-pinblock.port';
 import { Iso4PinblockService } from '../services/iso4-pinblock.service';
 
@@ -107,7 +108,14 @@ export class SgtCardAdapter implements ISgtCardPort {
         `SGT /activate-pin responded for cardId=${cardId}: ok=${response?.ok}, activationCode=${response?.data?.activationCode}`,
       );
 
-      if (!response?.ok) {
+      // AP002/AP003: el SGT responde ok=false pero el registro fue exitoso,
+      // el service necesita el activationCode y el token para persistir la tarjeta
+      const activationCode = response?.data?.activationCode;
+      const isPartialSuccess =
+        activationCode === ACTIVATION_CODES.AP002.code ||
+        activationCode === ACTIVATION_CODES.AP003.code;
+
+      if (!response?.ok && !isPartialSuccess) {
         const sgtMessage = this.extractSgtMessage(response);
         this.logger.warn(
           `SGT /activate-pin rejected cardId=${cardId}: ${sgtMessage}`,
