@@ -682,6 +682,9 @@ export class TransactionsRepository implements ITransactionsRepository {
       expiresAt: document.expiresAt,
       signature: document.signature,
       stateSnapshot: document.stateSnapshot,
+      processedAt: document.processedAt,
+      sgtTransferCode: document.sgtTransferCode,
+      sgtIsoResponseCode: document.sgtIsoResponseCode,
       createdAt: document.createdAt,
       updatedAt: document.updatedAt,
     });

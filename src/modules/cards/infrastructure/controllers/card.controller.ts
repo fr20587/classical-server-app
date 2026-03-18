@@ -24,6 +24,7 @@ import {
   ApiUnauthorizedResponse,
   ApiOkResponse,
   ApiInternalServerErrorResponse,
+  ApiNotFoundResponse,
   ApiQuery,
   ApiParam,
 } from '@nestjs/swagger';
@@ -196,6 +197,50 @@ export class CardController {
       },
     };
     const response = await this.cardsService.list(queryParams);
+    return res.status(response.statusCode).json(response);
+  }
+
+  /**
+   * POST /cards/:id/retry-activation - Retry activation for a REGISTERED card
+   * @returns 200 OK with updated card
+   */
+  @Post(':id/retry-activation')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reintentar activación de tarjeta',
+    description:
+      'Reintenta la activación de una tarjeta que quedó en estado REGISTERED (código AP002). No requiere enviar PAN ni PIN ya que se recuperan de Vault.',
+  })
+  @ApiParam({
+    name: 'id',
+    required: true,
+    type: String,
+    description: 'ID de la tarjeta a reintentar activación',
+  })
+  @ApiOkResponse({
+    description: 'Activación reintentada exitosamente',
+    type: ApiResponse<CardResponseDto>,
+  })
+  @ApiBadRequestResponse({
+    description: 'La activación fue rechazada por el emisor',
+  })
+  @ApiConflictResponse({
+    description: 'La tarjeta no está en estado REGISTERED',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Falta x-api-key o es inválida',
+  })
+  @ApiForbiddenResponse({
+    description: 'Sin permisos para esta tarjeta',
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Error interno del servidor',
+  })
+  async retryActivation(
+    @Res() res: Response,
+    @Param('id') id: string,
+  ): Promise<Response> {
+    const response = await this.cardsService.retryActivation(id);
     return res.status(response.statusCode).json(response);
   }
 

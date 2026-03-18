@@ -10,6 +10,7 @@ import { TenantVaultService } from '../infrastructure/services/tenant-vault.serv
 
 import { TenantsRepository } from '../infrastructure/adapters/tenant.repository';
 import { TenantLifecycleRepository } from '../infrastructure/adapters/tenant-lifecycle.repository';
+import { TenantSequenceAdapter } from '../infrastructure/adapters/tenant-sequence.adapter';
 
 import { Tenant } from '../infrastructure/schemas/tenant.schema';
 
@@ -49,6 +50,7 @@ export class TenantsService {
     private readonly eventEmitter: EventEmitter2,
     private readonly lifecycleRepository: TenantLifecycleRepository,
     private readonly oauth2CredentialsService: TenantOAuth2CredentialsService,
+    private readonly tenantSequenceAdapter: TenantSequenceAdapter,
     private readonly tenantsRepository: TenantsRepository,
     private readonly vaultService: TenantVaultService,
     private readonly webhooksService: TenantWebhooksService,
@@ -82,6 +84,9 @@ export class TenantsService {
       }
 
       const tenantId = uuidv4();
+
+      // Generar código secuencial único (8 dígitos, e.g., "00000001")
+      const code = await this.tenantSequenceAdapter.getNextTenantCode();
 
       // Guardar PAN en Vault
       const savePanResult = await this.vaultService.savePan(
@@ -124,6 +129,7 @@ export class TenantsService {
       // Nota: Solo guardamos clientId, el clientSecret se guarda en Vault
       const tenantData = {
         id: tenantId,
+        code,
         businessName: dto.businessName,
         legalRepresentative: dto.legalRepresentative,
         businessAddress: dto.businessAddress,
@@ -930,6 +936,7 @@ export class TenantsService {
   ): Tenant {
     return {
       id: tenant.id,
+      code: tenant.code,
       businessName: tenant.businessName,
       legalRepresentative: tenant.legalRepresentative,
       businessAddress: {

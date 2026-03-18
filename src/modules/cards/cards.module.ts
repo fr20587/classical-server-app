@@ -51,6 +51,13 @@ import { UsersModule } from '../users/users.module';
       useClass: SgtCardAdapter,
     },
   ],
-  exports: [CardsService, CardsRepository, Iso4PinblockService, MongooseModule],
+  exports: [
+    CardsService,
+    CardsRepository,
+    CardVaultAdapter,
+    Iso4PinblockService,
+    INJECTION_TOKENS.CARD_SGT_PORT,
+    MongooseModule,
+  ],
 })
 export class CardsModule {}

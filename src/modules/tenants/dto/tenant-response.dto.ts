@@ -32,6 +32,12 @@ export class TenantResponseDto {
   id: string;
 
   @ApiProperty({
+    description: 'Código único auto-incremental del tenant (8 dígitos)',
+    example: '00000001',
+  })
+  code: string;
+
+  @ApiProperty({
     description: 'Nombre legal del negocio',
     example: 'Mi Empresa S.A.',
   })

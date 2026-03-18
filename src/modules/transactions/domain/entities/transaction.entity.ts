@@ -27,6 +27,9 @@ export class Transaction {
   expiresAt: Date; // Timestamp de expiración
   signature: string; // Firma HMAC-SHA256 del payload del QR
   stateSnapshot?: Record<string, any>; // Snapshot de la máquina de estados XState
+  processedAt?: Date; // Cuándo se procesó el pago
+  sgtTransferCode?: string; // Código de respuesta SGT (TR000, TR001, etc.)
+  sgtIsoResponseCode?: string; // Código ISO 8583 del emisor
   createdAt: Date;
   updatedAt: Date;
 
@@ -45,6 +48,9 @@ export class Transaction {
     this.expiresAt = partial.expiresAt ?? new Date();
     this.signature = partial.signature ?? '';
     this.stateSnapshot = partial.stateSnapshot;
+    this.processedAt = partial.processedAt;
+    this.sgtTransferCode = partial.sgtTransferCode;
+    this.sgtIsoResponseCode = partial.sgtIsoResponseCode;
     this.createdAt = partial.createdAt ?? new Date();
     this.updatedAt = partial.updatedAt ?? new Date();
   }

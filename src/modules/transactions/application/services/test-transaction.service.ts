@@ -66,9 +66,10 @@ export class TestTransactionService {
    * Genera un monto aleatorio entre 50 y 1000 USD (en centavos)
    */
   private generateRandomAmount(): number {
-    // Rango: 50 USD (5000 centavos) a 1000 USD (100000 centavos)
-    const minCents = 5000;
-    const maxCents = 100000;
+    //// Rango: 50 USD (5000 centavos) a 1000 USD (100000 centavos)
+    // Rango: 1 USD (100 centavos) a 5 USD (500 centavos)
+    const minCents = 100;
+    const maxCents = 500;
     return Math.floor(Math.random() * (maxCents - minCents + 1)) + minCents;
   }
 

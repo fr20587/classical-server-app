@@ -29,6 +29,19 @@ import { TenantLifecycle } from './tenant-lifecycle.schema';
 })
 export class Tenant extends AbstractSchema {
   /**
+   * Código único auto-incremental del tenant (8 dígitos, e.g., "00000001")
+   * Se genera automáticamente al crear el tenant
+   */
+  @Prop({
+    type: String,
+    required: true,
+    unique: true,
+    length: 8,
+    match: /^[0-9]{8}$/,
+  })
+  code: string;
+
+  /**
    * Nombre del negocio
    */
   @Prop({
@@ -174,6 +187,7 @@ export const TenantSchema = SchemaFactory.createForClass(Tenant);
 /**
  * Crear índices para optimización de queries
  */
+TenantSchema.index({ code: 1 }, { unique: true });
 TenantSchema.index({ email: 1 });
 TenantSchema.index({ status: 1 });
 TenantSchema.index({ createdAt: 1 });

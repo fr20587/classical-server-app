@@ -194,9 +194,9 @@ export class CardsService {
         ? CardStatusEnum.REGISTERED
         : CardStatusEnum.ACTIVE;
 
-      // Parsear balance si viene en la respuesta (viene en centavos como string)
+      // Parsear balance si viene en la respuesta (viene en centavos, convertir a pesos)
       const sgtBalance = sgtResponse.data?.balance
-        ? parseInt(sgtResponse.data.balance, 10) || 0
+        ? (parseInt(sgtResponse.data.balance, 10) || 0) / 100
         : 0;
 
       this.logger.log(
@@ -552,6 +552,222 @@ export class CardsService {
       ...transaction,
       amount: transaction.amount * 0.01,
     }));
+  }
+
+  /**
+   * Retry activation for a card in REGISTERED status (AP002 from initial registration)
+   * Retrieves PAN and pinblock from Vault, then calls SGT again with the stored token
+   */
+  async retryActivation(
+    cardId: string,
+  ): Promise<ApiResponse<CardResponseDto>> {
+    const requestId = this.asyncContextService.getRequestId();
+    const userId = this.asyncContextService.getActorId()!;
+
+    try {
+      this.logger.log(`[${requestId}] Retrying activation for cardId=${cardId}`);
+
+      // Step 1: Find the card and validate it belongs to the user and is REGISTERED
+      const card = await this.cardsRepository.findById(cardId);
+
+      if (!card) {
+        return ApiResponse.fail<CardResponseDto>(
+          HttpStatus.NOT_FOUND,
+          'Tarjeta no encontrada',
+          'Card not found',
+        );
+      }
+
+      if (card.userId !== userId) {
+        return ApiResponse.fail<CardResponseDto>(
+          HttpStatus.FORBIDDEN,
+          'No tiene permisos para esta tarjeta',
+          'Forbidden',
+        );
+      }
+
+      if (card.status !== CardStatusEnum.REGISTERED) {
+        return ApiResponse.fail<CardResponseDto>(
+          HttpStatus.CONFLICT,
+          'Solo se puede reintentar la activación de tarjetas en estado REGISTERED',
+          `Estado actual: ${card.status}`,
+        );
+      }
+
+      // Step 2: Retrieve PAN and pinblock from Vault
+      const panResult = await this.cardVaultAdapter.getPan(cardId);
+      if (panResult.isFailure) {
+        this.logger.error(`[${requestId}] Failed to retrieve PAN from Vault for cardId=${cardId}`);
+        return ApiResponse.fail<CardResponseDto>(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          'Error al recuperar datos de la tarjeta',
+          'Error interno',
+        );
+      }
+
+      const pinblockResult = await this.cardVaultAdapter.getPinblock(cardId);
+      if (pinblockResult.isFailure) {
+        this.logger.error(`[${requestId}] Failed to retrieve pinblock from Vault for cardId=${cardId}`);
+        return ApiResponse.fail<CardResponseDto>(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          'Error al recuperar datos de la tarjeta',
+          'Error interno',
+        );
+      }
+
+      const pan = panResult.getValue();
+      const pinblock = pinblockResult.getValue();
+
+      // Step 3: Get user's idNumber
+      const resolveUser = await this.usersRepository.findByIdRaw(userId);
+
+      // Step 4: Call SGT with the stored token for retry
+      this.logger.log(`[${requestId}] Calling SGT retry activation for cardId=${cardId}`);
+
+      const sgtResult = await this.sgtCardPort.activatePin(
+        cardId,
+        pan,
+        pinblock,
+        resolveUser!.idNumber,
+        card.tml,
+        card.aut,
+        card.token,
+      );
+
+      if (sgtResult.isFailure) {
+        const sgtError = sgtResult.getError();
+
+        this.logger.warn(
+          `[${requestId}] SGT retry activation failed for card ${cardId}: ${sgtError.message}`,
+        );
+
+        this.auditService.logError(
+          'SGT_RETRY_ACTIVATE_PIN_FAILED',
+          'card',
+          cardId,
+          sgtError,
+          {
+            module: 'cards',
+            severity: 'HIGH',
+            tags: ['card', 'sgt', 'retry-activation', 'failed'],
+            actorId: userId,
+          },
+        );
+
+        return ApiResponse.fail<CardResponseDto>(
+          HttpStatus.BAD_REQUEST,
+          sgtError.message,
+          'La activación no pudo completarse',
+        );
+      }
+
+      const sgtResponse = sgtResult.getValue();
+      const activationCode = sgtResponse.data?.activationCode;
+
+      this.logger.log(
+        `[${requestId}] SGT retry response for card ${cardId}: ${JSON.stringify(sgtResponse)}`,
+      );
+
+      // AP001: Registro rechazado por el emisor
+      if (activationCode === ACTIVATION_CODES.AP001.code) {
+        this.logger.warn(`[${requestId}] SGT retry rejected for card ${cardId}`);
+        return ApiResponse.fail<CardResponseDto>(
+          HttpStatus.BAD_REQUEST,
+          ACTIVATION_CODES.AP001.message,
+          ACTIVATION_CODES.AP001.description,
+        );
+      }
+
+      // AP004: Error de comunicación con el emisor
+      if (activationCode === ACTIVATION_CODES.AP004.code) {
+        this.logger.error(`[${requestId}] SGT communication error on retry for card ${cardId}`);
+        return ApiResponse.fail<CardResponseDto>(
+          HttpStatus.BAD_GATEWAY,
+          ACTIVATION_CODES.AP004.message,
+          ACTIVATION_CODES.AP004.description,
+        );
+      }
+
+      // AP002: Still not activated → keep REGISTERED, update token if changed
+      if (activationCode === ACTIVATION_CODES.AP002.code) {
+        const updates: Partial<Card> = {};
+        if (sgtResponse.data?.token) {
+          updates.token = sgtResponse.data.token;
+        }
+        if (Object.keys(updates).length > 0) {
+          await this.cardsRepository.update(cardId, updates);
+        }
+
+        const updatedCard = await this.cardsRepository.findById(cardId);
+        return ApiResponse.ok<CardResponseDto>(
+          HttpStatus.OK,
+          this.mapCardToResponse(updatedCard!),
+          ACTIVATION_CODES.AP002.message,
+        );
+      }
+
+      // AP000/AP003: Activation successful → update to ACTIVE (centavos → pesos)
+      const sgtBalance = sgtResponse.data?.balance
+        ? (parseInt(sgtResponse.data.balance, 10) || 0) / 100
+        : 0;
+
+      const updates: Partial<Card> = {
+        status: CardStatusEnum.ACTIVE,
+        balance: sgtBalance,
+      };
+
+      if (sgtResponse.data?.token) {
+        updates.token = sgtResponse.data.token;
+      }
+
+      const updatedCard = await this.cardsRepository.update(cardId, updates);
+
+      this.logger.log(
+        `[${requestId}] Card ${cardId} activated successfully on retry`,
+      );
+
+      this.auditService.logAllow('RETRY_ACTIVATION_CARD', 'card', cardId, {
+        module: 'cards',
+        severity: 'LOW',
+        tags: ['card', 'retry-activation', 'successful'],
+        actorId: userId,
+        changes: {
+          before: { status: CardStatusEnum.REGISTERED },
+          after: { status: CardStatusEnum.ACTIVE, balance: sgtBalance },
+        },
+      });
+
+      return ApiResponse.ok<CardResponseDto>(
+        HttpStatus.OK,
+        this.mapCardToResponse(updatedCard),
+        'Tarjeta activada exitosamente',
+      );
+    } catch (error: any) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[${requestId}] Failed to retry activation for card ${cardId}: ${errorMsg}`,
+        error,
+      );
+
+      this.auditService.logError(
+        'RETRY_ACTIVATION_FAILED',
+        'card',
+        cardId,
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          module: 'cards',
+          severity: 'HIGH',
+          tags: ['card', 'retry-activation', 'error'],
+          actorId: userId,
+        },
+      );
+
+      return ApiResponse.fail<CardResponseDto>(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Error interno del servidor',
+        'Error desconocido',
+      );
+    }
   }
 
   private async rollbackVaultSecrets(

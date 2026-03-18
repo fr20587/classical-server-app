@@ -11,12 +11,17 @@ import { TenantController } from './infrastructure/controllers/tenant.controller
 import { TenantsRepository } from './infrastructure/adapters/tenant.repository';
 import { TenantLifecycleRepository } from './infrastructure/adapters/tenant-lifecycle.repository';
 import { TenantVaultService } from './infrastructure/services/tenant-vault.service';
+import { TenantSequenceAdapter } from './infrastructure/adapters/tenant-sequence.adapter';
 
 import { Tenant, TenantSchema } from './infrastructure/schemas/tenant.schema';
 import {
   TenantLifecycle,
   TenantLifecycleSchema,
 } from './infrastructure/schemas/tenant-lifecycle.schema';
+import {
+  TenantSequence,
+  TenantSequenceSchema,
+} from './infrastructure/schemas/tenant-sequence.schema';
 import { AsyncContextService } from 'src/common/context';
 import { TenantOAuth2CredentialsService } from './application/services/tenant-oauth2-credentials.service';
 import { UsersModule } from '../users/users.module';
@@ -46,6 +51,10 @@ import { UsersModule } from '../users/users.module';
         name: TenantLifecycle.name,
         schema: TenantLifecycleSchema,
       },
+      {
+        name: TenantSequence.name,
+        schema: TenantSequenceSchema,
+      },
     ]),
     UsersModule,
   ],
@@ -56,6 +65,7 @@ import { UsersModule } from '../users/users.module';
     TenantOAuth2CredentialsService,
     TenantsRepository,
     TenantLifecycleRepository,
+    TenantSequenceAdapter,
     TenantVaultService,
   ],
   controllers: [TenantController],

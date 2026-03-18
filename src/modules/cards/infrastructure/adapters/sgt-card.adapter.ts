@@ -8,6 +8,8 @@ import { Result } from 'src/common/types/result.type';
 import {
   ISgtCardPort,
   SgtActivatePinResponse,
+  SgtTransferRequest,
+  SgtTransferResponse,
 } from '../../domain/ports/sgt-card.port';
 import { ACTIVATION_CODES } from '../../domain/constants/activation-codes.constant';
 import type { ISgtPinblockPort } from '../../domain/ports/sgt-pinblock.port';
@@ -128,6 +130,103 @@ export class SgtCardAdapter implements ISgtCardPort {
       const msg = this.extractSgtMessage(error);
       this.logger.error(`SGT /activate-pin failed for cardId=${cardId}: ${msg}`, error);
       return Result.fail<SgtActivatePinResponse>(
+        error instanceof Error && error.message === msg ? error : new Error(msg),
+      );
+    }
+  }
+
+  /**
+   * Realiza una transferencia (pago o devolución) contra el SGT.
+   * POST {SGT_URL}/transfer
+   *
+   * Flujo de 2 pasos internos en SGT: transferencia + consulta de saldo
+   */
+  async transfer(
+    request: SgtTransferRequest,
+  ): Promise<Result<SgtTransferResponse, Error>> {
+    try {
+      const baseUrl = this.configService.getOrThrow<string>('SGT_URL');
+      const hmacSecret = this.configService.getOrThrow<string>('SGT_HMAC_SECRET');
+      const clientId = this.configService.getOrThrow<string>('SGT_CLIENT_ID');
+      const apiKey = this.configService.getOrThrow<string>('SGT_API_KEY');
+
+      // Step 1: Decodificar ISO-4 pinblock usando el token para obtener el PIN plano
+      const decodeResult = this.iso4PinblockService.decodeIso4Pinblock(request.pin, request.token);
+      if (decodeResult.isFailure) {
+        this.logger.error(`Failed to decode ISO-4 pinblock for transfer: ${decodeResult.getError().message}`);
+        return Result.fail<SgtTransferResponse>(decodeResult.getError());
+      }
+      const plainPin = decodeResult.getValue();
+
+      // Step 2: Re-encriptar el PIN en formato propietario SGT
+      const sgtPinblockResult = this.sgtPinblockPort.encodeAndEncrypt(plainPin);
+      if (sgtPinblockResult.isFailure) {
+        return Result.fail<SgtTransferResponse>(sgtPinblockResult.getError());
+      }
+      const encryptedPin = sgtPinblockResult.getValue();
+
+      const body = {
+        token: request.token,
+        pin: encryptedPin,
+        amount: request.amount,
+        settlementAmount: request.settlementAmount,
+        cardholderAmount: request.cardholderAmount,
+        beneficiaryAccount: request.beneficiaryAccount,
+        clientReference: request.clientReference,
+        type: request.type,
+        merchantId: request.merchantId,
+        idNumber: request.idNumber,
+      };
+
+      this.logger.log(`[SgtCardAdapter] transfer request body ${JSON.stringify({
+        ...body,
+        pin: '***',
+        token: body.token.slice(0, 4) + '****',
+      })}`);
+
+      const timestamp = new Date().toISOString();
+      const payload = JSON.stringify(body) + timestamp;
+
+      const signature = createHmac('sha256', hmacSecret)
+        .update(payload)
+        .digest('hex');
+
+      const headers = {
+        'X-Signature': signature,
+        'X-Timestamp': timestamp,
+        'X-Client-ID': clientId,
+        'apiKey': apiKey,
+      };
+
+      this.logger.log(`Calling SGT /transfer for ref=${request.clientReference}`);
+
+      const response = await this.httpService.post<SgtTransferResponse>(
+        `${baseUrl}/transfer`,
+        body,
+        { headers },
+      );
+
+      this.logger.log(
+        `SGT /transfer responded for ref=${request.clientReference}: ok=${response?.ok}, transferCode=${response?.data?.transferCode}`,
+      );
+
+      // TR002: transferencia OK pero balance query falló → considerar como éxito parcial
+      const transferCode = response?.data?.transferCode;
+      const isPartialSuccess = transferCode === 'TR002';
+
+      if (!response?.ok && !isPartialSuccess) {
+        const sgtMessage = this.extractSgtMessage(response);
+        this.logger.warn(
+          `SGT /transfer rejected ref=${request.clientReference}: ${sgtMessage}`,
+        );
+        return Result.fail<SgtTransferResponse>(new Error(sgtMessage));
+      }
+
+      return Result.ok<SgtTransferResponse>(response);
+    } catch (error: any) {
+      const msg = this.extractSgtMessage(error);
+      this.logger.error(`SGT /transfer failed for ref=${request.clientReference}: ${msg}`, error);
+      return Result.fail<SgtTransferResponse>(
         error instanceof Error && error.message === msg ? error : new Error(msg),
       );
     }

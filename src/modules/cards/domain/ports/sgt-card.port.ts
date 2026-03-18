@@ -22,6 +22,55 @@ export interface SgtActivatePinResponse {
 }
 
 /**
+ * Parámetros para realizar una transferencia contra el SGT
+ */
+export interface SgtTransferRequest {
+  /** Token de la tarjeta (obtenido en el registro) */
+  token: string;
+  /** PINBLOCK en formato ISO-4 (se convertirá a formato SGT internamente) */
+  pin: string;
+  /** Monto total de la operación (12 dígitos, últimos 2 son decimales) */
+  amount: string;
+  /** Monto a acreditar al beneficiario (12 dígitos) */
+  settlementAmount: string;
+  /** Comisión de la pasarela (12 dígitos) */
+  cardholderAmount: string;
+  /** Cuenta del beneficiario (PAN o Token de la tarjeta destino) */
+  beneficiaryAccount: string;
+  /** Referencia única de la transacción (anti-replay) */
+  clientReference: string;
+  /** Tipo de operación: payment o refund */
+  type: 'payment' | 'refund';
+  /** Identificador del comercio (15 caracteres, zero-padded) */
+  merchantId: string;
+  /** Carnet de identidad (11 dígitos) */
+  idNumber: string;
+}
+
+/**
+ * Datos internos de la respuesta de transferencia del SGT
+ */
+export interface SgtTransferData {
+  /** Código de operación: TR000=éxito, TR001=rechazada, TR002=OK/balance fallido, TR003=error comunicación */
+  transferCode: string;
+  /** Código de respuesta ISO 8583 del emisor */
+  isoResponseCode?: string;
+  /** Saldo de la tarjeta tras la transferencia */
+  balance?: string;
+  /** Montos adicionales */
+  additionalAmounts?: string;
+}
+
+/**
+ * Respuesta del servidor SGT al realizar una transferencia
+ */
+export interface SgtTransferResponse {
+  ok: boolean;
+  message: string;
+  data?: SgtTransferData;
+}
+
+/**
  * Puerto de salida para la integración con el servidor SGT
  * Implementado por SgtCardAdapter en la capa de infraestructura
  */
@@ -42,4 +91,14 @@ export interface ISgtCardPort {
     aut: string,
     token?: string,
   ): Promise<Result<SgtActivatePinResponse, Error>>;
+
+  /**
+   * Realiza una transferencia (pago o devolución) contra el SGT
+   * Endpoint: POST /transfer
+   * Auth: HMAC-SHA256
+   * Flujo de 2 pasos: transferencia + consulta de saldo
+   */
+  transfer(
+    request: SgtTransferRequest,
+  ): Promise<Result<SgtTransferResponse, Error>>;
 }

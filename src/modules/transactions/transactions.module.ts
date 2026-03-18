@@ -22,6 +22,7 @@ import { TransactionQueryService } from './application/services/transaction-quer
 import { DashboardService } from './application/services/dashboard.service';
 import { TenantWebhookDispatcher } from './application/services/tenant-webhook.dispatcher';
 import { TestTransactionService } from './application/services/test-transaction.service';
+import { TransactionPaymentProcessor } from './application/services/transaction-payment.processor';
 
 // Ports
 import { Tenant, TenantSchema } from '../tenants/infrastructure/schemas/tenant.schema';
@@ -70,6 +71,7 @@ import { CardsModule } from '../cards/cards.module';
         DashboardService,
         TenantWebhookDispatcher,
         TestTransactionService,
+        TransactionPaymentProcessor,
 
         // Tasks
         TransactionExpirationTask,

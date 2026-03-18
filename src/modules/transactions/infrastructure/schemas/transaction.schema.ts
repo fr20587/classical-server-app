@@ -55,6 +55,12 @@ export class TransactionSchema extends AbstractSchema {
 
   @Prop({ sparse: true, index: true })
   processedAt?: Date; // Cuándo se procesó
+
+  @Prop({ sparse: true })
+  sgtTransferCode?: string; // Código de respuesta SGT (TR000, TR001, etc.)
+
+  @Prop({ sparse: true })
+  sgtIsoResponseCode?: string; // Código ISO 8583 del emisor
 }
 
 export const TransactionSchemaFactory = SchemaFactory.createForClass(TransactionSchema);
