@@ -15,7 +15,7 @@ export class CardVaultAdapter implements ICardVaultPort {
   constructor(
     @Inject(INJECTION_TOKENS.VAULT_CLIENT)
     private readonly vaultClient: IVaultClient,
-  ) {}
+  ) { }
 
   async savePanAndPinblock(
     cardId: string,
@@ -83,7 +83,8 @@ export class CardVaultAdapter implements ICardVaultPort {
         return Result.fail(result.getError());
       }
 
-      const data = result.getValue();
+      const data = result.getValue().data;
+      console.log({ data });
       const pinblock = data.data?.pinblock as string | undefined;
 
       if (!pinblock) {
