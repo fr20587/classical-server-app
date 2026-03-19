@@ -137,7 +137,7 @@ export class VaultHttpAdapter implements IVaultClient {
       const fullPath = `/v1/${this.kvMount}/data/${this.vaultNamespace}/${path}`;
       this.logger.log(`Read secret from Vault: ${fullPath}`);
       const response = await this.httpClient.get<VaultKVData>(fullPath);
-
+      console.log({ data: response.data })
       this.logger.log(`Read secret from Vault: ${path}`);
       this.emitEvent('read', path, 'completed');
 
@@ -204,7 +204,7 @@ export class VaultHttpAdapter implements IVaultClient {
       this.token &&
       this.tokenExpire &&
       Date.now() <
-        this.tokenExpire.getTime() - this.tokenRenewSafetyWindowSec * 1000
+      this.tokenExpire.getTime() - this.tokenRenewSafetyWindowSec * 1000
     ) {
       return Result.ok(this.token);
     }
@@ -315,9 +315,9 @@ export class VaultHttpAdapter implements IVaultClient {
     const errObj: unknown = error;
     const errMsg =
       typeof errObj === 'object' &&
-      errObj !== null &&
-      'message' in errObj &&
-      typeof (errObj as { message: unknown }).message === 'string'
+        errObj !== null &&
+        'message' in errObj &&
+        typeof (errObj as { message: unknown }).message === 'string'
         ? (errObj as { message: string }).message
         : String(errObj);
     const message = `Vault ${operation} error: ${errMsg}`;
@@ -447,7 +447,7 @@ export class VaultHttpAdapter implements IVaultClient {
   ): Promise<Result<void, VaultError>> {
     try {
       const vaultPath = `devices/keys/${keyHandle}/private`;
-      
+
       const writeResult = await this.writeKV(vaultPath, {
         value: privatePem,
         created_at: new Date().toISOString(),
@@ -470,7 +470,7 @@ export class VaultHttpAdapter implements IVaultClient {
   async retrieveServerPrivateKey(keyHandle: string): Promise<Result<string, VaultError>> {
     try {
       const vaultPath = `devices/keys/${keyHandle}/private`;
-      
+
       const readResult = await this.readKV(vaultPath);
 
       if (!readResult.isSuccess) {
@@ -504,7 +504,7 @@ export class VaultHttpAdapter implements IVaultClient {
   async deleteServerPrivateKey(keyHandle: string): Promise<Result<void, VaultError>> {
     try {
       const vaultPath = `devices/keys/${keyHandle}/private`;
-      
+
       const deleteResult = await this.deleteKV(vaultPath);
 
       if (!deleteResult.isSuccess) {
