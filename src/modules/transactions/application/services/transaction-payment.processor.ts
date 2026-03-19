@@ -93,6 +93,7 @@ export class TransactionPaymentProcessor {
       // Step 2: Obtener pinblock de la tarjeta desde Vault
       const pinblockResult = await this.cardVaultAdapter.getPinblock(cardId);
       this.logger.log(`Pinblock obtenido para tarjeta: ${cardId}`);
+      console.log({ pinblockResult });
       if (pinblockResult.isFailure) {
         return this.failAndReturn(transactionId, tenantId, customerId, 'Error al recuperar pinblock de Vault');
       }
