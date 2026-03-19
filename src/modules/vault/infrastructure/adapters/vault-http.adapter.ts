@@ -134,7 +134,7 @@ export class VaultHttpAdapter implements IVaultClient {
         return Result.fail(tokenResult.getError());
       }
 
-      const fullPath = `/v1/${this.kvMount}/${this.vaultNamespace}/${path}`;
+      const fullPath = `/v1/${this.kvMount}/data/${this.vaultNamespace}/${path}`;
       this.logger.log(`Read secret from Vault: ${fullPath}`);
       const response = await this.httpClient.get<VaultKVData>(fullPath);
 
