@@ -178,12 +178,6 @@ export class SgtCardAdapter implements ISgtCardPort {
         idNumber: request.idNumber,
       };
 
-      this.logger.log(`[SgtCardAdapter] transfer request body ${JSON.stringify({
-        ...body,
-        pin: '***',
-        token: body.token.slice(0, 4) + '****',
-      })}`);
-
       const timestamp = new Date().toISOString();
       const payload = JSON.stringify(body) + timestamp;
 
@@ -198,7 +192,16 @@ export class SgtCardAdapter implements ISgtCardPort {
         'apiKey': apiKey,
       };
 
-      this.logger.log(`Calling SGT /transfer for ref=${request.clientReference}`);
+      // Log del payload de salida (datos sensibles enmascarados)
+      this.logger.log(
+        `[SGT /transfer] → REQUEST ref=${request.clientReference} url=${baseUrl}/transfer payload=${JSON.stringify({
+          ...body,
+          pin: '***',
+          token: body.token.slice(0, 4) + '****',
+          beneficiaryAccount: body.beneficiaryAccount.slice(0, 6) + '****' + body.beneficiaryAccount.slice(-4),
+          idNumber: '***',
+        })}`,
+      );
 
       const response = await this.httpService.post<SgtTransferResponse>(
         `${baseUrl}/transfer`,
@@ -206,8 +209,9 @@ export class SgtCardAdapter implements ISgtCardPort {
         { headers },
       );
 
+      // Log de la respuesta del SGT
       this.logger.log(
-        `SGT /transfer responded for ref=${request.clientReference}: ok=${response?.ok}, transferCode=${response?.data?.transferCode}`,
+        `[SGT /transfer] ← RESPONSE ref=${request.clientReference} ok=${response?.ok} data=${JSON.stringify(response?.data ?? response)}`,
       );
 
       // TR002: transferencia OK pero balance query falló → considerar como éxito parcial
@@ -217,7 +221,7 @@ export class SgtCardAdapter implements ISgtCardPort {
       if (!response?.ok && !isPartialSuccess) {
         const sgtMessage = this.extractSgtMessage(response);
         this.logger.warn(
-          `SGT /transfer rejected ref=${request.clientReference}: ${sgtMessage}`,
+          `[SGT /transfer] ✗ REJECTED ref=${request.clientReference}: ${sgtMessage}`,
         );
         return Result.fail<SgtTransferResponse>(new Error(sgtMessage));
       }
@@ -225,7 +229,10 @@ export class SgtCardAdapter implements ISgtCardPort {
       return Result.ok<SgtTransferResponse>(response);
     } catch (error: any) {
       const msg = this.extractSgtMessage(error);
-      this.logger.error(`SGT /transfer failed for ref=${request.clientReference}: ${msg}`, error);
+      this.logger.error(
+        `[SGT /transfer] ✗ ERROR ref=${request.clientReference}: ${msg} raw=${JSON.stringify(error?.response?.data ?? error?.message ?? error)}`,
+        error,
+      );
       return Result.fail<SgtTransferResponse>(
         error instanceof Error && error.message === msg ? error : new Error(msg),
       );
